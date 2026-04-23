@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carousel Comparison — Product by Kel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #060c11;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 32px 48px;
+  gap: 28px;
+}
+.top-label {
+  color: #3B9EFF;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.grid {
+  display: flex;
+  gap: 28px;
+  width: 100%;
+  max-width: 1300px;
+  /* Horizontal scroll if viewport is narrow */
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 560px;
+  flex: 1;
+}
+.col-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.option-title {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+}
+.option-desc {
+  color: rgba(255,255,255,0.38);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
+.badge {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.5);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 100px;
+}
+.badge.blue  { background: rgba(59,158,255,0.1);  border-color: rgba(59,158,255,0.25);  color: #3B9EFF; }
+.badge.amber { background: rgba(240,160,40,0.1);  border-color: rgba(240,160,40,0.25);  color: #F0A028; }
+.iframe-wrap {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 20px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.06);
+}
+iframe {
+  /* The inner carousel scales its own slide to fit the iframe viewport.
+     We give it a fixed internal viewport so the slide renders at a legible size. */
+  width: 760px;
+  height: 760px;
+  border: none;
+  transform-origin: top left;
+  display: block;
+  background: #0d1520;
+  /* scale to fill the wrapper — JS sets this */
+}
+.divider {
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.08) 30%, rgba(255,255,255,0.08) 70%, transparent);
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.hint {
+  color: rgba(255,255,255,0.18);
+  font-size: 11px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="top-label">Layout &amp; Color Comparison · Product by Kel</div>
+
+<div class="grid">
+  <!-- Option A: Split layout, blue -->
+  <div class="col">
+    <div class="col-header">
+      <div class="option-title">Option A — Split Layout</div>
+      <div class="badge blue">Electric Blue · Navy Dark</div>
+      <div class="option-desc">Story content left · Full article image right</div>
+    </div>
+    <div class="iframe-wrap" id="wrap-a">
+      <iframe src="AI News Carousel v3.html" id="frame-a" title="Split layout — Electric Blue"></iframe>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Option B: Thumbnail layout, amber -->
+  <div class="col">
+    <div class="col-header">
+      <div class="option-title">Option B — Thumbnail Layout</div>
+      <div class="badge amber">Warm Amber · Midnight Dark</div>
+      <div class="option-desc">Full dark slide · Small image near headline</div>
+    </div>
+    <div class="iframe-wrap" id="wrap-b">
+      <iframe src="AI News Carousel.html" id="frame-b" title="Thumbnail layout — Warm Amber"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="hint">Navigate each carousel independently · click a slide then use ← → keys</div>
+
+<script>
+function scaleIframe(wrapId, frameId) {
+  const wrap  = document.getElementById(wrapId);
+  const frame = document.getElementById(frameId);
+  if (!wrap || !frame) return;
+  const wrapW = wrap.clientWidth;
+  const frameW = 760; // fixed internal width we gave the iframe
+  const scale = wrapW / frameW;
+  frame.style.transform = `scale(${scale})`;
+  // also fix height so wrap doesn't overflow
+  wrap.style.height = wrapW + 'px';
+}
+
+function scaleAll() {
+  scaleIframe('wrap-a', 'frame-a');
+  scaleIframe('wrap-b', 'frame-b');
+}
+
+scaleAll();
+window.addEventListener('resize', scaleAll);
+</script>
+</body>
+</html>

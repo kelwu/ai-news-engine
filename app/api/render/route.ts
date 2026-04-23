@@ -1,0 +1,87 @@
+import { NextResponse } from "next/server";
+import { renderMediaOnLambda, getRenderProgress } from "@remotion/lambda/client";
+import { supabase } from "@/lib/supabase";
+
+const REGION = process.env.REMOTION_REGION as "us-west-2";
+const FUNCTION_NAME = process.env.REMOTION_FUNCTION_NAME ?? "remotion-render-4-0-448-mem2048mb-disk2048mb-300sec";
+const SERVE_URL = process.env.REMOTION_SERVE_URL!;
+const S3_BUCKET = process.env.REMOTION_S3_BUCKET!;
+
+process.env.AWS_ACCESS_KEY_ID = process.env.REMOTION_AWS_ACCESS_KEY_ID!;
+process.env.AWS_SECRET_ACCESS_KEY = process.env.REMOTION_AWS_SECRET_ACCESS_KEY!;
+
+async function waitForRender(renderId: string, bucketName: string): Promise<string> {
+  for (let i = 0; i < 120; i++) {
+    const progress = await getRenderProgress({ renderId, bucketName, functionName: FUNCTION_NAME, region: REGION });
+
+    if (progress.done) {
+      return progress.outputFile!;
+    }
+    if (progress.fatalErrorEncountered) {
+      throw new Error(progress.errors[0]?.message ?? "Render failed");
+    }
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+  throw new Error("Render timed out after 10 minutes");
+}
+
+export async function POST() {
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data: episode, error: fetchError } = await supabase
+    .from("episodes")
+    .select("id, selected_story, script, image_url, image_urls, voiceover_url, caption, hashtags")
+    .eq("scheduled_for", today)
+    .in("status", ["voiced", "rendering"])
+    .maybeSingle();
+
+  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  if (!episode) return NextResponse.json({ error: "No voiced episode found for today" }, { status: 404 });
+
+  const story = episode.selected_story as { headline: string; source: string };
+
+  const { renderId, bucketName } = await renderMediaOnLambda({
+    region: REGION,
+    functionName: FUNCTION_NAME,
+    serveUrl: SERVE_URL,
+    composition: "AINewsReel",
+    inputProps: {
+      headline: story.headline,
+      summary: episode.script,
+      source: story.source,
+      date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+      voiceover_url: episode.voiceover_url,
+      image_url: episode.image_url,
+      image_urls: episode.image_urls ?? [episode.image_url],
+      duration: 50,
+    },
+    codec: "h264",
+    outName: `${episode.id}.mp4`,
+    concurrencyPerLambda: 1,
+    framesPerLambda: 300,
+  });
+
+  await supabase
+    .from("episodes")
+    .update({ status: "rendering", error: null })
+    .eq("id", episode.id);
+
+  let outputFile: string;
+  try {
+    outputFile = await waitForRender(renderId, bucketName);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Render failed";
+    await supabase
+      .from("episodes")
+      .update({ status: "voiced", error: msg })
+      .eq("id", episode.id);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+
+  await supabase
+    .from("episodes")
+    .update({ video_url: outputFile, status: "rendered", error: null })
+    .eq("id", episode.id);
+
+  return NextResponse.json({ success: true, episode_id: episode.id, video_url: outputFile });
+}

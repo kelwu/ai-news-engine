@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product by Kel — AI News Carousel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#162535"/>
+    <rect x="20" y="20" width="4" height="60" fill="#3B9EFF"/>
+    <rect x="30" y="28" width="50" height="8" rx="2" fill="#fff"/>
+    <rect x="30" y="44" width="38" height="4" rx="1" fill="#3B9EFF" opacity="0.7"/>
+    <rect x="30" y="54" width="42" height="3" rx="1" fill="#fff" opacity="0.4"/>
+    <rect x="30" y="62" width="32" height="3" rx="1" fill="#fff" opacity="0.3"/>
+  </svg>
+</template>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #0e1a23;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  /* Tweaks panel */
+  #tweaks-panel {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #1e2f3e;
+    border: 1px solid #2a4056;
+    border-radius: 16px;
+    padding: 20px;
+    width: 260px;
+    z-index: 9999;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #tweaks-panel.visible { display: block; }
+  #tweaks-panel h3 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #3B9EFF; margin-bottom: 14px; }
+  .tweak-label { font-size: 12px; color: #8ba3b5; margin-bottom: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  .theme-btns { display: flex; gap: 8px; margin-bottom: 16px; }
+  .theme-btn {
+    flex: 1; padding: 8px 4px; border-radius: 8px; border: 2px solid transparent;
+    font-size: 11px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .theme-btn.active { border-color: #3B9EFF; }
+  .theme-btn.light { background: #F2F1ED; color: #162535; }
+  .theme-btn.dark { background: #162535; color: #F2F1ED; }
+  .theme-btn.mixed { background: linear-gradient(135deg, #162535 50%, #F2F1ED 50%); color: #fff; }
+  .tweak-divider { border: none; border-top: 1px solid #2a4056; margin: 12px 0; }
+  .reload-btn {
+    width: 100%; padding: 10px; border-radius: 8px; border: none;
+    background: #3B9EFF; color: #fff; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s;
+  }
+  .reload-btn:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- Tweaks Panel -->
+<div id="tweaks-panel">
+  <h3>Tweaks</h3>
+  <div class="tweak-label">Color Theme</div>
+  <div class="theme-btns">
+    <button class="theme-btn light" data-theme="light">Light</button>
+    <button class="theme-btn dark active" data-theme="dark">Dark</button>
+    <button class="theme-btn mixed" data-theme="mixed">Mixed</button>
+  </div>
+  <hr class="tweak-divider">
+  <div class="tweak-label">Content</div>
+  <button class="reload-btn" id="reload-btn">↻ Regenerate News</button>
+</div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ─── Brand tokens ────────────────────────────────────────────────
+const NAVY   = '#162535';
+const BLUE   = '#3B9EFF';
+const CREAM  = '#F2F1ED';
+const WHITE  = '#FFFFFF';
+const MUTED  = 'rgba(255,255,255,0.45)';
+const MUTED_DARK = 'rgba(22,37,53,0.5)';
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "light"
+}/*EDITMODE-END*/;
+
+// ─── Theme definitions ───────────────────────────────────────────
+const THEMES = {
+  dark: {
+    cover:   { bg: NAVY,  text: WHITE,  sub: MUTED,   accent: BLUE, tag: 'rgba(59,158,255,0.18)', tagText: BLUE },
+    body:    { bg: NAVY,  text: WHITE,  sub: MUTED,   accent: BLUE, divider: 'rgba(255,255,255,0.1)' },
+    cta:     { bg: BLUE,  text: WHITE,  sub: 'rgba(255,255,255,0.7)', accent: WHITE },
+  },
+  light: {
+    cover:   { bg: CREAM, text: NAVY,  sub: MUTED_DARK, accent: BLUE, tag: 'rgba(59,158,255,0.12)', tagText: BLUE },
+    body:    { bg: CREAM, text: NAVY,  sub: MUTED_DARK, accent: BLUE, divider: 'rgba(22,37,53,0.1)' },
+    cta:     { bg: NAVY,  text: WHITE, sub: MUTED,      accent: BLUE },
+  },
+  mixed: {
+    cover:   { bg: NAVY,  text: WHITE,  sub: MUTED,   accent: BLUE, tag: 'rgba(59,158,255,0.18)', tagText: BLUE },
+    body:    { bg: CREAM, text: NAVY,  sub: MUTED_DARK, accent: BLUE, divider: 'rgba(22,37,53,0.1)' },
+    cta:     { bg: BLUE,  text: WHITE, sub: 'rgba(255,255,255,0.7)', accent: WHITE },
+  },
+};
+
+// ─── SVG Logo (inline recreation of Product by Kel mark) ─────────
+function PbkLogo({ size = 40, theme = 'dark' }) {
+  const dark = NAVY;
+  const light = WHITE;
+  const iconColor = theme === 'light' ? dark : light;
+  return (
+    <svg width={size} height={size * 0.36} viewBox="0 0 220 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Square icon */}
+      <rect x="2" y="22" width="44" height="44" rx="3" stroke={iconColor} strokeWidth="6" fill="none"/>
+      {/* Antenna dot */}
+      <circle cx="28" cy="8" r="7" fill={BLUE}/>
+      {/* Antenna line */}
+      <line x1="28" y1="14" x2="20" y2="22" stroke={`url(#antgrad${theme})`} strokeWidth="5" strokeLinecap="round"/>
+      <defs>
+        <linearGradient id={`antgrad${theme}`} x1="28" y1="14" x2="20" y2="22" gradientUnits="userSpaceOnUse">
+          <stop stopColor={BLUE}/>
+          <stop offset="1" stopColor={iconColor}/>
+        </linearGradient>
+      </defs>
+      {/* Text */}
+      <text x="60" y="48" fontFamily="DM Sans, sans-serif" fontWeight="700" fontSize="36" fill={iconColor} letterSpacing="-0.5">PRODUCT</text>
+      <text x="60" y="78" fontFamily="DM Sans, sans-serif" fontWeight="700" fontSize="36" fill={iconColor} letterSpacing="-0.5">BY KEL</text>
+    </svg>
+  );
+}
+
+// ─── Slide: Cover ────────────────────────────────────────────────
+function CoverSlide({ data, t }) {
+  const c = t.cover;
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: c.bg,
+      display: 'flex', flexDirection: 'column',
+      padding: '52px 56px', position: 'relative', overflow: 'hidden'
+    }}>
+      {/* Top accent line */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: BLUE }} />
+
+      {/* Subtle grid pattern */}
+      <div style={{
+        position: 'absolute', inset: 0, opacity: 0.04,
+        backgroundImage: `repeating-linear-gradient(0deg, ${c.text} 0px, ${c.text} 1px, transparent 1px, transparent 64px),
+                          repeating-linear-gradient(90deg, ${c.text} 0px, ${c.text} 1px, transparent 1px, transparent 64px)`
+      }}/>
+
+      {/* Logo + Channel */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, zIndex: 1 }}>
+        <PbkLogo size={52} theme={c.bg === CREAM ? 'light' : 'dark'} />
+      </div>
+
+      {/* Main content — pushed to center/bottom */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', zIndex: 1 }}>
+        {/* Keyword pill */}
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          background: c.tag, borderRadius: 100, padding: '6px 16px',
+          marginBottom: 28, alignSelf: 'flex-start'
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: BLUE }} />
+          <span style={{ color: c.tagText, fontSize: 15, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            {data?.keyword || 'AI News'}
+          </span>
+        </div>
+
+        {/* Big headline */}
+        <h1 style={{
+          color: c.text, fontSize: 58, fontWeight: 700, lineHeight: 1.08,
+          letterSpacing: '-0.02em', marginBottom: 24,
+          textWrap: 'pretty', maxWidth: '90%'
+        }}>
+          {data?.headline || 'Loading headline…'}
+        </h1>
+
+        {/* Date + swipe hint */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: c.sub, fontSize: 15, fontWeight: 400 }}>
+            {data?.date || 'April 22, 2026'}
+          </span>
+          <span style={{ color: c.sub, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+            Swipe for details
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8h10M9 4l4 4-4 4" stroke={c.sub} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Slide: Headline + Context ────────────────────────────────────
+function ContextSlide({ data, t, slideNum, total }) {
+  const c = t.body;
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: c.bg,
+      display: 'flex', padding: '52px 0', position: 'relative'
+    }}>
+      {/* Blue accent bar */}
+      <div style={{ width: 5, background: BLUE, borderRadius: '0 3px 3px 0', flexShrink: 0, margin: '0 0 0 0' }} />
+
+      <div style={{ flex: 1, padding: '0 52px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        {/* Slide label */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
+          <span style={{ color: BLUE, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            What Happened
+          </span>
+          <span style={{ color: c.sub, fontSize: 13 }}>{slideNum}/{total}</span>
+        </div>
+
+        {/* Headline */}
+        <h2 style={{
+          color: c.text, fontSize: 42, fontWeight: 700,
+          lineHeight: 1.15, letterSpacing: '-0.02em', marginBottom: 32,
+          textWrap: 'pretty'
+        }}>
+          {data?.headline || '…'}
+        </h2>
+
+        {/* Context paragraph */}
+        <p style={{
+          color: c.sub, fontSize: 22, fontWeight: 400,
+          lineHeight: 1.55, textWrap: 'pretty', flex: 1
+        }}>
+          {data?.context || '…'}
+        </p>
+
+        <div style={{ borderTop: `1px solid ${c.divider}`, paddingTop: 20, marginTop: 24 }}>
+          <span style={{ color: c.sub, fontSize: 14 }}>@ProductbyKel</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Slide: Key Facts ─────────────────────────────────────────────
+function FactsSlide({ data, t, slideNum, total }) {
+  const c = t.body;
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: c.bg,
+      display: 'flex', padding: '52px 0', position: 'relative'
+    }}>
+      <div style={{ width: 5, background: BLUE, borderRadius: '0 3px 3px 0', flexShrink: 0 }} />
+
+      <div style={{ flex: 1, padding: '0 52px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
+          <span style={{ color: BLUE, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Key Points
+          </span>
+          <span style={{ color: c.sub, fontSize: 13 }}>{slideNum}/{total}</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28, flex: 1 }}>
+          {(data?.facts || ['…', '…', '…']).map((fact, i) => (
+            <div key={i} style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: `rgba(59,158,255,0.15)`, border: `1.5px solid ${BLUE}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, marginTop: 2
+              }}>
+                <span style={{ color: BLUE, fontSize: 15, fontWeight: 700 }}>0{i+1}</span>
+              </div>
+              <p style={{ color: c.text, fontSize: 24, fontWeight: 400, lineHeight: 1.45, textWrap: 'pretty' }}>{fact}</p>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ borderTop: `1px solid ${c.divider}`, paddingTop: 20, marginTop: 24 }}>
+          <span style={{ color: c.sub, fontSize: 14 }}>@ProductbyKel</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Slide: Numbers / Stats ───────────────────────────────────────
+function StatsSlide({ data, t, slideNum, total }) {
+  const c = t.body;
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: c.bg,
+      display: 'flex', padding: '52px 0', position: 'relative'
+    }}>
+      <div style={{ width: 5, background: BLUE, borderRadius: '0 3px 3px 0', flexShrink: 0 }} />
+
+      <div style={{ flex: 1, padding: '0 52px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 48 }}>
+          <span style={{ color: BLUE, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            By The Numbers
+          </span>
+          <span style={{ color: c.sub, fontSize: 13 }}>{slideNum}/{total}</span>
+        </div>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 48 }}>
+          {(data?.stats || [{number:'—', label:'—'}]).map((s, i) => (
+            <div key={i} style={{ borderBottom: i < (data?.stats?.length || 1) - 1 ? `1px solid ${c.divider}` : 'none', paddingBottom: i < (data?.stats?.length || 1) - 1 ? 48 : 0 }}>
+              <div style={{ color: BLUE, fontSize: 80, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em' }}>
+                {s.number}
+              </div>
+              <div style={{ color: c.text, fontSize: 22, fontWeight: 400, marginTop: 10 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ borderTop: `1px solid ${c.divider}`, paddingTop: 20, marginTop: 24 }}>
+          <span style={{ color: c.sub, fontSize: 14 }}>@ProductbyKel</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Slide: CTA ───────────────────────────────────────────────────
+function CtaSlide({ data, t }) {
+  const c = t.cta;
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: c.bg,
+      display: 'flex', flexDirection: 'column',
+      padding: '52px 56px', position: 'relative', overflow: 'hidden'
+    }}>
+      {/* Subtle circles */}
+      <div style={{ position: 'absolute', right: -80, top: -80, width: 320, height: 320, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}/>
+      <div style={{ position: 'absolute', right: 40, bottom: -120, width: 240, height: 240, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }}/>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 1 }}>
+        <div style={{ color: c.sub, fontSize: 16, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 20 }}>
+          Stay informed
+        </div>
+        <h2 style={{ color: c.text, fontSize: 60, fontWeight: 700, lineHeight: 1.05, letterSpacing: '-0.02em', marginBottom: 32 }}>
+          Follow for daily AI & PM insights.
+        </h2>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{
+            background: 'rgba(255,255,255,0.15)', borderRadius: 100,
+            padding: '12px 24px', color: c.text, fontSize: 16, fontWeight: 600
+          }}>
+            📺 YouTube @ProductbyKel
+          </div>
+          <div style={{
+            background: 'rgba(255,255,255,0.15)', borderRadius: 100,
+            padding: '12px 24px', color: c.text, fontSize: 16, fontWeight: 600
+          }}>
+            🌐 kelwu.com
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom logo */}
+      <div style={{ zIndex: 1 }}>
+        <PbkLogo size={52} theme="dark" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Loading Screen ───────────────────────────────────────────────
+function LoadingSlide({ theme }) {
+  const t = THEMES[theme];
+  const c = t.cover;
+  return (
+    <div style={{
+      width: '100%', height: '100%', background: c.bg,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24
+    }}>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {[0,1,2].map(i => (
+          <div key={i} style={{
+            width: 10, height: 10, borderRadius: '50%', background: BLUE,
+            animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+          }}/>
+        ))}
+      </div>
+      <p style={{ color: c.sub, fontSize: 16, fontWeight: 400 }}>Fetching latest AI news…</p>
+      <style>{`
+        @keyframes bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40% { transform: translateY(-12px); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────
+function App() {
+  const [theme, setTheme] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pbk_tweak_theme')) || TWEAK_DEFAULTS.theme; } catch { return TWEAK_DEFAULTS.theme; }
+  });
+  const [slide, setSlide] = useState(() => {
+    try { return parseInt(localStorage.getItem('pbk_slide') || '0'); } catch { return 0; }
+  });
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+  const t = THEMES[theme];
+
+  const fetchNews = useCallback(async () => {
+    setLoading(true);
+    setSlide(0);
+    try {
+      const resp = await window.claude.complete({
+        messages: [{
+          role: 'user',
+          content: `Generate a realistic, professional AI/Product Management news story for today, April 22, 2026. 
+Return ONLY valid JSON in this exact shape (no markdown, no extra text):
+{
+  "keyword": "2-3 word topic tag, e.g. 'GPT-5 Launch'",
+  "headline": "Short punchy headline, max 8 words",
+  "date": "April 22, 2026",
+  "context": "2-3 sentences explaining what happened and why it matters for PMs and AI practitioners.",
+  "facts": ["Fact 1 (1 sentence)", "Fact 2 (1 sentence)", "Fact 3 (1 sentence)"],
+  "stats": [
+    {"number": "e.g. $6.6B", "label": "e.g. Total funding raised"},
+    {"number": "e.g. 500M+", "label": "e.g. Monthly active users"}
+  ]
+}`
+        }]
+      });
+      const json = JSON.parse(resp.trim().replace(/^```json\n?/, '').replace(/\n?```$/, ''));
+      setData(json);
+    } catch (e) {
+      // Fallback sample data
+      setData({
+        keyword: 'AI Agents',
+        headline: 'AI Agents Are Reshaping Product Workflows',
+        date: 'April 22, 2026',
+        context: 'A new wave of autonomous AI agents is transforming how product teams operate — from automated user research to real-time roadmap prioritization. PMs who adapt early are seeing 3× faster discovery cycles.',
+        facts: [
+          'Over 60% of Fortune 500 PMs now use AI agents for sprint planning and backlog grooming.',
+          'Anthropic, OpenAI, and Google each shipped major agentic frameworks in Q1 2026.',
+          'Autonomous agents can now execute end-to-end workflows without human checkpoints.',
+        ],
+        stats: [
+          { number: '3×', label: 'Faster product discovery with AI agents' },
+          { number: '$42B', label: 'Global market for agentic AI by 2028' },
+        ],
+      });
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchNews(); }, []);
+
+  useEffect(() => {
+    localStorage.setItem('pbk_slide', slide);
+  }, [slide]);
+
+  useEffect(() => {
+    localStorage.setItem('pbk_tweak_theme', JSON.stringify(theme));
+  }, [theme]);
+
+  // Tweaks panel wiring
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksVisible(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksVisible(false);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  // External tweaks panel DOM
+  useEffect(() => {
+    const panel = document.getElementById('tweaks-panel');
+    if (panel) panel.className = tweaksVisible ? 'visible' : '';
+
+    const btns = document.querySelectorAll('.theme-btn');
+    btns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.theme === theme);
+      btn.onclick = () => {
+        setTheme(btn.dataset.theme);
+        window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { theme: btn.dataset.theme } }, '*');
+      };
+    });
+
+    const reloadBtn = document.getElementById('reload-btn');
+    if (reloadBtn) reloadBtn.onclick = fetchNews;
+  }, [tweaksVisible, theme, fetchNews]);
+
+  // Keyboard nav
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'ArrowRight') setSlide(s => Math.min(s + 1, 4));
+      if (e.key === 'ArrowLeft') setSlide(s => Math.max(s - 1, 0));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const TOTAL = 5;
+  const slides = loading ? null : [
+    <CoverSlide   key="cover"   data={data} t={t} />,
+    <ContextSlide key="ctx"     data={data} t={t} slideNum={2} total={TOTAL} />,
+    <FactsSlide   key="facts"   data={data} t={t} slideNum={3} total={TOTAL} />,
+    <StatsSlide   key="stats"   data={data} t={t} slideNum={4} total={TOTAL} />,
+    <CtaSlide     key="cta"     data={data} t={t} />,
+  ];
+
+  // Touch swipe
+  const touchX = useRef(null);
+  const onTouchStart = (e) => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd   = (e) => {
+    if (touchX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    if (dx < -40) setSlide(s => Math.min(s + 1, TOTAL - 1));
+    if (dx > 40)  setSlide(s => Math.max(s - 1, 0));
+    touchX.current = null;
+  };
+
+  // Scale slide to viewport
+  const SLIDE_SIZE = 1080;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 28 }}>
+      {/* Header */}
+      <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        Instagram Carousel — 1080 × 1080
+      </div>
+
+      {/* Slide frame */}
+      <div style={{
+        width: 'min(540px, 92vw)',
+        aspectRatio: '1 / 1',
+        position: 'relative',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+        borderRadius: 4,
+        overflow: 'hidden',
+        cursor: 'grab',
+      }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Inner at 1080, scaled down */}
+        <div style={{
+          width: SLIDE_SIZE,
+          height: SLIDE_SIZE,
+          transformOrigin: 'top left',
+          transform: `scale(${0.5})`,
+          position: 'absolute', top: 0, left: 0,
+        }}>
+          <style>{`
+            @media (max-width: 600px) {
+              .slide-inner { transform: scale(${Math.min(0.5, (window.innerWidth * 0.92 / SLIDE_SIZE))}) !important; }
+            }
+          `}</style>
+          {loading
+            ? <LoadingSlide theme={theme} />
+            : slides[slide]
+          }
+        </div>
+
+        {/* Overlay nav zones */}
+        {!loading && slide > 0 && (
+          <button onClick={() => setSlide(s => s - 1)} style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: '30%',
+            background: 'transparent', border: 'none', cursor: 'pointer', zIndex: 10
+          }} aria-label="Previous slide"/>
+        )}
+        {!loading && slide < TOTAL - 1 && (
+          <button onClick={() => setSlide(s => s + 1)} style={{
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: '30%',
+            background: 'transparent', border: 'none', cursor: 'pointer', zIndex: 10
+          }} aria-label="Next slide"/>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        <button onClick={() => setSlide(s => Math.max(s - 1, 0))} disabled={slide === 0 || loading} style={{
+          background: 'none', border: '1.5px solid rgba(255,255,255,0.2)', color: '#fff',
+          width: 40, height: 40, borderRadius: '50%', cursor: slide === 0 || loading ? 'default' : 'pointer',
+          opacity: slide === 0 || loading ? 0.3 : 1, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'opacity 0.2s'
+        }}>‹</button>
+
+        {/* Dots */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {Array.from({ length: TOTAL }).map((_, i) => (
+            <div key={i} onClick={() => !loading && setSlide(i)} style={{
+              width: i === slide ? 24 : 8, height: 8, borderRadius: 100,
+              background: i === slide ? BLUE : 'rgba(255,255,255,0.2)',
+              transition: 'all 0.25s', cursor: 'pointer',
+            }}/>
+          ))}
+        </div>
+
+        <button onClick={() => setSlide(s => Math.min(s + 1, TOTAL - 1))} disabled={slide === TOTAL - 1 || loading} style={{
+          background: 'none', border: '1.5px solid rgba(255,255,255,0.2)', color: '#fff',
+          width: 40, height: 40, borderRadius: '50%', cursor: slide === TOTAL - 1 || loading ? 'default' : 'pointer',
+          opacity: slide === TOTAL - 1 || loading ? 0.3 : 1, fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'opacity 0.2s'
+        }}>›</button>
+      </div>
+
+      {/* Theme label */}
+      {!loading && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['light', 'dark', 'mixed'].map(th => (
+            <button key={th} onClick={() => setTheme(th)} style={{
+              background: theme === th ? 'rgba(59,158,255,0.2)' : 'rgba(255,255,255,0.06)',
+              border: `1.5px solid ${theme === th ? BLUE : 'transparent'}`,
+              color: theme === th ? BLUE : 'rgba(255,255,255,0.4)',
+              borderRadius: 100, padding: '6px 16px', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', transition: 'all 0.2s',
+              textTransform: 'capitalize'
+            }}>{th}</button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12 }}>
+        ← → arrow keys or click sides to navigate · tap theme to switch
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
