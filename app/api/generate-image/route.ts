@@ -100,6 +100,8 @@ export async function POST() {
     .select("id, selected_story")
     .eq("scheduled_for", today)
     .eq("status", "scripted")
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });

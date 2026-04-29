@@ -25,6 +25,10 @@ export default async function ReviewPage() {
   const carouselUrls: string[] = episode.carousel_urls ?? [];
   const hasVideo = !!episode.video_url;
   const hasCarousel = carouselUrls.length > 0;
+  const carouselData = episode.carousel_data as {
+    coverHeadline?: string;
+    stories?: Array<{ category?: string; source?: string; url?: string; headlinePrefix?: string; headlineHighlight?: string; headlineSuffix?: string; headline?: string }>;
+  } | null;
 
   return (
     <div className="space-y-6">
@@ -52,6 +56,36 @@ export default async function ReviewPage() {
         <p className="text-xs text-zinc-500 uppercase tracking-wider">Script</p>
         <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{episode.script}</p>
       </div>
+
+      {/* Carousel sources */}
+      {carouselData?.stories && carouselData.stories.length > 0 && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-3">
+          <p className="text-xs text-zinc-500 uppercase tracking-wider">Carousel sources</p>
+          {carouselData.stories.map((s, i) => {
+            const headline = s.headlinePrefix || s.headlineHighlight
+              ? [s.headlinePrefix, s.headlineHighlight, s.headlineSuffix].filter(Boolean).join(" ")
+              : s.headline ?? "";
+            return (
+              <div key={i} className="flex items-start justify-between gap-4">
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs text-blue-400 font-medium uppercase tracking-wider">{s.category}</p>
+                  <p className="text-zinc-300 text-sm leading-snug">{headline}</p>
+                </div>
+                {s.source && (
+                  <a
+                    href={s.url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-zinc-500 hover:text-zinc-300 shrink-0 transition-colors"
+                  >
+                    {s.source} →
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Voiceover */}
       {episode.voiceover_url && (

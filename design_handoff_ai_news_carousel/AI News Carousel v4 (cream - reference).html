@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product by Kel — AI News Carousel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#0d1520"/>
+    <rect x="8" y="12" width="50" height="6" rx="3" fill="#3B9EFF" opacity="0.8"/>
+    <rect x="8" y="24" width="55" height="8" rx="2" fill="#fff"/>
+    <rect x="8" y="34" width="40" height="8" rx="2" fill="#fff"/>
+    <rect x="8" y="46" width="3" height="3" fill="#3B9EFF"/>
+    <rect x="8" y="60" width="25" height="16" rx="3" fill="#1a2035"/>
+    <rect x="37" y="60" width="25" height="16" rx="3" fill="#1a2035"/>
+    <rect x="66" y="60" width="25" height="16" rx="3" fill="#1a2035"/>
+    <rect x="12" y="63" width="14" height="4" rx="1" fill="#3B9EFF"/>
+    <rect x="41" y="63" width="14" height="4" rx="1" fill="#3B9EFF"/>
+    <rect x="70" y="63" width="14" height="4" rx="1" fill="#3B9EFF"/>
+  </svg>
+</template>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #080d12;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+}
+#tweaks-panel {
+  display: none;
+  position: fixed; bottom: 24px; right: 24px;
+  background: #111d28; border: 1px solid #1e3044;
+  border-radius: 16px; padding: 20px; width: 230px;
+  z-index: 9999; box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+  color: #fff; font-family: 'DM Sans', sans-serif;
+}
+#tweaks-panel.visible { display: block; }
+#tweaks-panel h3 { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #3B9EFF; margin-bottom: 14px; }
+.tweak-label { font-size: 10px; color: #4a6a80; margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.tweak-divider { border: none; border-top: 1px solid #1e3044; margin: 12px 0; }
+.reload-btn {
+  width: 100%; padding: 10px; border-radius: 8px; border: none;
+  background: #3B9EFF; color: #fff; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+}
+.reload-btn:hover { opacity: 0.85; }
+@keyframes kpulse {
+  0%,80%,100% { transform: translateY(0); opacity: 0.3; }
+  40% { transform: translateY(-12px); opacity: 1; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<div id="tweaks-panel">
+  <h3>Tweaks</h3>
+  <div class="tweak-label">Content</div>
+  <button class="reload-btn" id="reload-btn">↻ Regenerate News</button>
+</div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ── Tokens — Cyan-Blue / Deep Indigo scheme ────────────────────
+const BG_DEEP  = '#07101d';   // deep blue-black
+const BG_CARD  = '#0d1e32';   // rich dark navy card
+const BG_MID   = '#091628';   // story panel — deep indigo-navy
+const BLUE     = '#3DBEFF';   // accent — crisp cyan-blue (not standard electric)
+const WHITE    = '#ffffff';
+const MUTED    = 'rgba(255,255,255,0.40)';
+const MUTED2   = 'rgba(255,255,255,0.20)';
+
+// ── Inline Logo ──────────────────────────────────────────────────
+function PbkMark({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <rect x="1" y="11" width="20" height="20" rx="2.5" stroke={WHITE} strokeWidth="3.5" fill="none"/>
+      <circle cx="13" cy="4" r="3.5" fill={BLUE}/>
+      <line x1="13" y1="7" x2="9" y2="11" stroke={BLUE} strokeWidth="3" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function PbkHandle({ size = 13 }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+      <div style={{ width:7, height:7, borderRadius:'50%', background:BLUE, flexShrink:0 }}/>
+      <span style={{ color:WHITE, fontSize:size, fontWeight:700, letterSpacing:'0.01em' }}>@productbykel</span>
+    </div>
+  );
+}
+
+function CategoryPill({ label }) {
+  return (
+    <div style={{ display:'inline-flex', flexDirection:'column', gap:8, alignSelf:'flex-start' }}>
+      <span style={{ color:BLUE, fontSize:20, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{label}</span>
+      <div style={{ height:2.5, background:BLUE, borderRadius:1 }}/>
+    </div>
+  );
+}
+
+function DataCard({ label, value }) {
+  return (
+    <div style={{
+      background:BG_CARD, borderRadius:14, padding:'22px 28px',
+      display:'flex', justifyContent:'space-between', alignItems:'center', gap:16
+    }}>
+      <span style={{ color:MUTED, fontSize:18, fontWeight:500, lineHeight:1.3 }}>{label}</span>
+      <span style={{ color:BLUE, fontSize:36, fontWeight:700, letterSpacing:'-0.02em', flexShrink:0, textAlign:'right', maxWidth:220, lineHeight:1.1 }}>{value}</span>
+    </div>
+  );
+}
+
+function KelsTake({ text }) {
+  return (
+    <div style={{
+      background:'rgba(61,190,255,0.10)', border:'1px solid rgba(61,190,255,0.25)',
+      borderRadius:14, padding:'20px 24px'
+    }}>
+      <div style={{ color:BLUE, fontSize:18, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10 }}>
+        Kel's Take
+      </div>
+      <p style={{ color:WHITE, fontSize:22, fontWeight:400, lineHeight:1.5, textWrap:'pretty' }}>{text}</p>
+    </div>
+  );
+}
+
+// ── Light story tokens ────────────────────────────────────────────
+const S_BG    = '#F2EFE8';
+const S_CARD  = '#FFFFFF';
+const S_TEXT  = '#0D1B2A';
+const S_MUTED = 'rgba(13,27,42,0.48)';
+const S_MUTED2= 'rgba(13,27,42,0.25)';
+const S_BLUE  = '#1A8EFF';
+
+function DataCardLight({ label, value }) {
+  return (
+    <div style={{
+      background:S_CARD, borderRadius:14, padding:'22px 28px',
+      display:'flex', justifyContent:'space-between', alignItems:'center', gap:16,
+      border:'1px solid rgba(13,27,42,0.08)', boxShadow:'0 2px 12px rgba(13,27,42,0.06)'
+    }}>
+      <span style={{ color:S_MUTED, fontSize:18, fontWeight:500, lineHeight:1.3 }}>{label}</span>
+      <span style={{ color:S_BLUE, fontSize:22, fontWeight:700, letterSpacing:'-0.02em', flexShrink:0, textAlign:'right', maxWidth:260, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>{value}</span>
+    </div>
+  );
+}
+
+function KelsTakeLight({ text }) {
+  return (
+    <div style={{ background:S_TEXT, borderRadius:14, padding:'20px 24px' }}>
+      <div style={{ color:S_BLUE, fontSize:18, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10 }}>Kel's Take</div>
+      <p style={{ color:'#fff', fontSize:22, fontWeight:400, lineHeight:1.5, textWrap:'pretty' }}>{text}</p>
+    </div>
+  );
+}
+
+function CategoryLabel({ label }) {
+  return (
+    <div style={{ display:'inline-flex', flexDirection:'column', gap:8, alignSelf:'flex-start' }}>
+      <span style={{ color:S_BLUE, fontSize:20, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{label}</span>
+      <div style={{ height:2.5, background:S_BLUE, borderRadius:1 }}/>
+    </div>
+  );
+}
+
+// ── Image Placeholder ────────────────────────────────────────────
+function ImagePlaceholder({ label }) {
+  return (
+    <div style={{
+      width:'100%', height:'100%', position:'relative', overflow:'hidden',
+      background:'#0a1018',
+    }}>
+      {/* Stripe pattern */}
+      <svg width="100%" height="100%" style={{ position:'absolute', inset:0 }}>
+        <defs>
+          <pattern id="stripes" width="20" height="20" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="10" height="20" fill="rgba(255,255,255,0.025)"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#stripes)"/>
+      </svg>
+      {/* Label */}
+      <div style={{
+        position:'absolute', inset:0, display:'flex', flexDirection:'column',
+        alignItems:'center', justifyContent:'center', gap:12
+      }}>
+        <div style={{ width:40, height:40, borderRadius:8, border:'1.5px dashed rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="1" y="1" width="16" height="16" rx="2" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5"/>
+            <circle cx="6" cy="6" r="1.5" fill="rgba(255,255,255,0.2)"/>
+            <path d="M1 12l4-4 3 3 3-4 5 6" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        <span style={{ color:'rgba(255,255,255,0.15)', fontSize:11, fontFamily:'monospace', letterSpacing:'0.06em', textAlign:'center', lineHeight:1.5, padding:'0 16px' }}>
+          {label || 'article image'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── Slide 1: Cover ───────────────────────────────────────────────
+function CoverSlide({ data }) {
+  const date = data?.date || 'April 22, 2026';
+  return (
+    <div style={{ width:'100%', height:'100%', background:S_BG, display:'flex', position:'relative', overflow:'hidden' }}>
+      {/* Top accent stripe */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:5, background:`linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)`, zIndex:2 }}/>
+
+      {/* RIGHT: Image placeholder with cream fade */}
+      <div style={{ position:'absolute', right:0, top:0, bottom:0, width:460, zIndex:0 }}>
+        <ImagePlaceholder label={'cover\nimage'} />
+        <div style={{ position:'absolute', inset:0, background:`linear-gradient(90deg, ${S_BG} 0%, rgba(242,239,232,0.72) 45%, transparent 100%)` }}/>
+      </div>
+
+      {/* LEFT: Content */}
+      <div style={{ position:'relative', zIndex:1, display:'flex', flexDirection:'column', padding:'52px 56px', width:700 }}>
+        {/* Top row */}
+        <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:48 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+            <div style={{ width:7, height:7, borderRadius:'50%', background:'#3B9EFF', flexShrink:0 }}/>
+            <span style={{ color:S_TEXT, fontSize:20, fontWeight:700 }}>@productbykel</span>
+          </div>
+          <div style={{ width:1, height:20, background:S_MUTED, flexShrink:0 }}/>
+          <span style={{ color:S_BLUE, fontSize:18, fontWeight:700, letterSpacing:'0.1em' }}>
+            TECH BRIEF · {date.toUpperCase()}
+          </span>
+        </div>
+
+        {/* Headline */}
+        <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center' }}>
+          <h1 style={{
+            color:S_TEXT, fontSize:72, fontWeight:800, lineHeight:1.02,
+            letterSpacing:'-0.03em', textWrap:'pretty', marginBottom:24
+          }}>
+            {data?.coverHeadline || 'Loading today\'s brief…'}
+          </h1>
+          <div style={{ width:64, height:4, background:S_BLUE, borderRadius:2, marginBottom:28 }}/>
+          <p style={{ color:S_MUTED, fontSize:24, fontWeight:400, lineHeight:1.5 }}>
+            Here's what every PM and builder needs to know →
+          </p>
+        </div>
+
+        {/* Stat cards */}
+        {data?.stories && (
+          <div style={{ display:'flex', gap:12 }}>
+            {data.stories.map((s, i) => (
+              <div key={i} style={{
+                flex:1, background:S_CARD, borderRadius:14, padding:'18px 20px',
+                border:'1px solid rgba(13,27,42,0.08)',
+                boxShadow:'0 2px 12px rgba(13,27,42,0.06)'
+              }}>
+                <div style={{ color:S_BLUE, fontSize:40, fontWeight:700, letterSpacing:'-0.02em', lineHeight:1 }}>{s.coverStat?.number}</div>
+                <div style={{ color:S_MUTED, fontSize:15, marginTop:7, lineHeight:1.3 }}>{s.coverStat?.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Slides 2–4: Story (thumbnail layout) ─────────────────────────
+function StorySlide({ story, slideNum, total }) {
+  if (!story) return null;
+  return (
+    <div style={{ width:'100%', height:'100%', background:S_BG, display:'flex', flexDirection:'column', padding:'52px 60px 44px', position:'relative' }}>
+      {/* Top accent stripe */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:5, background:`linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)` }}/>
+
+      {/* Top row */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:36 }}>
+        <CategoryLabel label={story.category} />
+        <span style={{ color:S_MUTED2, fontSize:20, fontWeight:500 }}>{slideNum}/{total}</span>
+      </div>
+
+      {/* Headline row + thumbnail */}
+      <div style={{ display:'flex', gap:28, alignItems:'flex-start', marginBottom:32 }}>
+        <h2 style={{
+          flex:1, color:S_TEXT, fontSize:60, fontWeight:800, lineHeight:1.04,
+          letterSpacing:'-0.03em', textWrap:'pretty',
+          display:'-webkit-box', WebkitLineClamp:4, WebkitBoxOrient:'vertical', overflow:'hidden'
+        }}>
+          {story.headlinePrefix && <>{story.headlinePrefix} </>}
+          {story.headlineHighlight && <span style={{ color:S_BLUE }}>{story.headlineHighlight}</span>}
+          {story.headlineSuffix && <> {story.headlineSuffix}</>}
+          {!story.headlinePrefix && story.headline}
+        </h2>
+        <div style={{
+          width:220, height:176, borderRadius:18, overflow:'hidden',
+          flexShrink:0, marginTop:6,
+          boxShadow:'0 8px 32px rgba(13,27,42,0.15)',
+          border:'1px solid rgba(13,27,42,0.08)',
+        }}>
+          <ImagePlaceholder label={story.category?.toLowerCase() || 'article'} />
+        </div>
+      </div>
+
+      {/* Data cards */}
+      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:20 }}>
+        {(story.cards || []).map((c, i) => <DataCardLight key={i} label={c.key} value={c.value} />)}
+      </div>
+
+      {/* Kel's Take */}
+      <div style={{ marginTop:'auto' }}>
+        <KelsTakeLight text={story.kelsTake} />
+      </div>
+
+      {/* Bottom brand */}
+      <div style={{ marginTop:20, display:'flex', alignItems:'center', gap:8 }}>
+        <div style={{ width:7, height:7, borderRadius:'50%', background:'#3B9EFF', flexShrink:0 }}/>
+        <span style={{ color:S_TEXT, fontSize:22, fontWeight:700 }}>@productbykel</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Slide 5: CTA ─────────────────────────────────────────────────
+function CtaSlide() {
+  const platforms = [
+    { icon: '📸', name: 'Instagram', handle: '@productbykel' },
+    { icon: '▶', name: 'YouTube',   handle: 'youtube.com/@productbykel' },
+    { icon: '♪', name: 'TikTok',    handle: '@productbykel' },
+  ];
+  return (
+    <div style={{ width:'100%', height:'100%', background:S_BG, display:'flex', flexDirection:'column', padding:'60px 72px', position:'relative', overflow:'hidden' }}>
+      {/* Top accent stripe */}
+      <div style={{ position:'absolute', top:0, left:0, right:0, height:5, background:`linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)` }}/>
+
+      {/* Logo mark — navy on cream */}
+      <div style={{ marginBottom:'auto', paddingTop:8 }}>
+        <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
+          <rect x="1" y="11" width="20" height="20" rx="2.5" stroke={S_TEXT} strokeWidth="3.5" fill="none"/>
+          <circle cx="13" cy="4" r="3.5" fill="#3B9EFF"/>
+          <line x1="13" y1="7" x2="9" y2="11" stroke="#3B9EFF" strokeWidth="3" strokeLinecap="round"/>
+        </svg>
+      </div>
+
+      <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center' }}>
+        <div style={{ display:'inline-flex', flexDirection:'column', gap:8, alignSelf:'flex-start', marginBottom:24 }}>
+          <span style={{ color:S_BLUE, fontSize:18, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase' }}>Never miss a brief</span>
+          <div style={{ height:2.5, background:S_BLUE, borderRadius:1 }}/>
+        </div>
+        <h2 style={{ color:S_TEXT, fontSize:88, fontWeight:800, lineHeight:1.0, letterSpacing:'-0.03em', marginBottom:16 }}>
+          Follow<br/>@productbykel
+        </h2>
+        <p style={{ color:S_MUTED, fontSize:24, marginBottom:48 }}>for your Tech Brief</p>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {platforms.map((p, i) => (
+            <div key={i} style={{
+              display:'flex', alignItems:'center', gap:18,
+              background:S_CARD, borderRadius:14, padding:'20px 24px',
+              border:'1px solid rgba(13,27,42,0.08)',
+              boxShadow:'0 2px 8px rgba(13,27,42,0.05)'
+            }}>
+              <span style={{ fontSize:24, width:32, textAlign:'center' }}>{p.icon}</span>
+              <span style={{ color:S_MUTED, fontSize:18, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', width:110 }}>{p.name}</span>
+              <span style={{ color:S_TEXT, fontSize:20, fontWeight:600 }}>{p.handle}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Loading ───────────────────────────────────────────────────────
+function LoadingSlide() {
+  return (
+    <div style={{ width:'100%', height:'100%', background:S_BG, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:28 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+        <div style={{ width:7, height:7, borderRadius:'50%', background:'#3B9EFF' }}/>
+        <span style={{ color:S_TEXT, fontSize:16, fontWeight:700 }}>@productbykel</span>
+      </div>
+      <div style={{ display:'flex', gap:10 }}>
+        {[0,1,2].map(i=>(
+          <div key={i} style={{ width:10, height:10, borderRadius:'50%', background:S_BLUE, animation:`kpulse 1.2s ease-in-out ${i*0.2}s infinite` }}/>
+        ))}
+      </div>
+      <p style={{ color:S_MUTED, fontSize:15 }}>Generating your Tech Brief…</p>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────
+function App() {
+  const [slide, setSlide]   = useState(() => { try { return parseInt(localStorage.getItem('pbk_s3')||'0'); } catch { return 0; } });
+  const [data,  setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+  const touchX = useRef(null);
+  const TOTAL = 5;
+
+  const fetchNews = useCallback(async () => {
+    setLoading(true); setSlide(0);
+    try {
+      const resp = await window.claude.complete({ messages: [{ role:'user', content: `You are generating content for a premium Instagram carousel called "Tech Brief" for the channel @productbykel (AI & Product Management news). Today is April 22, 2026.
+
+Generate a realistic, coherent daily brief with exactly 3 stories. Return ONLY valid JSON, no markdown fences, no extra text:
+
+{
+  "coverHeadline": "A punchy 6-10 word headline summarizing today's AI/PM news theme.",
+  "date": "April 22, 2026",
+  "stories": [
+    {
+      "category": "AI · FUNDING",
+      "headlinePrefix": "short prefix 1-3 words",
+      "headlineHighlight": "the key number or term to highlight in blue (1-3 words)",
+      "headlineSuffix": "rest of headline ending with period",
+      "cards": [
+        {"key": "Descriptive data label", "value": "$33B (short number/stat only)"},
+        {"key": "Second data label", "value": "10 yrs (short stat only)"}
+      ],
+      "kelsTake": "One punchy sentence (15-20 words) with a PM-specific insight or implication.",
+      "coverStat": {"number": "$33B", "label": "Brief description for cover card"}
+    },
+    {
+      "category": "PRODUCT · STRATEGY",
+      "headlinePrefix": "...",
+      "headlineHighlight": "...",
+      "headlineSuffix": "...",
+      "cards": [{"key": "...", "value": "..."}, {"key": "...", "value": "..."}],
+      "kelsTake": "...",
+      "coverStat": {"number": "...", "label": "..."}
+    },
+    {
+      "category": "BIG TECH · AI",
+      "headlinePrefix": "...",
+      "headlineHighlight": "...",
+      "headlineSuffix": "...",
+      "cards": [{"key": "...", "value": "..."}, {"key": "...", "value": "..."}],
+      "kelsTake": "...",
+      "coverStat": {"number": "...", "label": "..."}
+    }
+  ]
+}` }] });
+      const clean = resp.trim().replace(/^```json\n?/,'').replace(/\n?```$/,'');
+      setData(JSON.parse(clean));
+    } catch(e) {
+      setData({
+        coverHeadline:"The AI infrastructure war just escalated.",
+        date:"April 22, 2026",
+        stories:[
+          { category:"AI · FUNDING", headlinePrefix:"Amazon bets", headlineHighlight:"$33B", headlineSuffix:"on Anthropic.",
+            cards:[{key:"Total AWS → Anthropic committed",value:"$33B"},{key:"Infrastructure deal length",value:"10 yrs"}],
+            kelsTake:"AWS isn't just a cloud host — they're positioning to own the compute backbone of frontier AI.",
+            coverStat:{number:"$33B",label:"Amazon → Anthropic"} },
+          { category:"PRODUCT · STRATEGY", headlinePrefix:"Meta targets", headlineHighlight:"$135B", headlineSuffix:"in AI capex.",
+            cards:[{key:"2026 AI capital expenditure",value:"$115–135B"},{key:"vs. prior year",value:"≈ 2×"}],
+            kelsTake:"When Meta doubles capex, every PM building on open-source LLaMA should expect faster, cheaper model upgrades.",
+            coverStat:{number:"$135B",label:"Meta 2026 AI spend"} },
+          { category:"BIG TECH · AI", headlinePrefix:"OpenAI ships", headlineHighlight:"GPT-5.4", headlineSuffix:"with computer use.",
+            cards:[{key:"Computer-use API availability",value:"All tiers"},{key:"API price vs GPT-4T",value:"−40%"}],
+            kelsTake:"Autonomous computer-use means PMs must now audit which product workflows will be disintermediated in 90 days.",
+            coverStat:{number:"−40%",label:"GPT-5 API pricing"} }
+        ]
+      });
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchNews(); }, []);
+  useEffect(() => { localStorage.setItem('pbk_s3', slide); }, [slide]);
+
+  // Tweaks
+  useEffect(() => {
+    const handler = e => {
+      if (e.data?.type==='__activate_edit_mode')   setTweaksVisible(true);
+      if (e.data?.type==='__deactivate_edit_mode') setTweaksVisible(false);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type:'__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  useEffect(() => {
+    const panel = document.getElementById('tweaks-panel');
+    if (panel) panel.className = tweaksVisible ? 'visible' : '';
+    const rb = document.getElementById('reload-btn');
+    if (rb) rb.onclick = fetchNews;
+  }, [tweaksVisible, fetchNews]);
+
+  // Keyboard
+  useEffect(() => {
+    const fn = e => {
+      if (e.key==='ArrowRight') setSlide(s=>Math.min(s+1,TOTAL-1));
+      if (e.key==='ArrowLeft')  setSlide(s=>Math.max(s-1,0));
+    };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, []);
+
+  const onTouchStart = e => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd   = e => {
+    if (!touchX.current) return;
+    const dx = e.changedTouches[0].clientX - touchX.current;
+    if (dx < -40) setSlide(s=>Math.min(s+1,TOTAL-1));
+    if (dx >  40) setSlide(s=>Math.max(s-1,0));
+    touchX.current = null;
+  };
+
+  const slides = loading ? null : [
+    <CoverSlide  key="cover" data={data} />,
+    <StorySlide  key="s1"   story={data?.stories?.[0]} slideNum={2} total={TOTAL} />,
+    <StorySlide  key="s2"   story={data?.stories?.[1]} slideNum={3} total={TOTAL} />,
+    <StorySlide  key="s3"   story={data?.stories?.[2]} slideNum={4} total={TOTAL} />,
+    <CtaSlide    key="cta" />,
+  ];
+
+  const NATIVE = 1080;
+  const DISPLAY = Math.min(540, window.innerWidth * 0.92);
+  const SCALE = DISPLAY / NATIVE;
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
+      <div style={{ color:'rgba(255,255,255,0.2)', fontSize:11, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+        Product by Kel · Tech Brief · 1080 × 1080
+      </div>
+
+      {/* Frame */}
+      <div style={{
+        width:DISPLAY, height:DISPLAY, position:'relative', overflow:'hidden',
+        boxShadow:'0 24px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05)',
+        borderRadius:8, flexShrink:0,
+      }}
+        onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+      >
+        <div style={{ width:NATIVE, height:NATIVE, transformOrigin:'top left', transform:`scale(${SCALE})`, position:'absolute' }}>
+          {loading ? <LoadingSlide /> : slides[slide]}
+        </div>
+        {!loading && slide>0        && <button onClick={()=>setSlide(s=>s-1)} aria-label="prev" style={{ position:'absolute',left:0,top:0,bottom:0,width:'22%',background:'transparent',border:'none',cursor:'pointer',zIndex:10 }}/>}
+        {!loading && slide<TOTAL-1  && <button onClick={()=>setSlide(s=>s+1)} aria-label="next" style={{ position:'absolute',right:0,top:0,bottom:0,width:'22%',background:'transparent',border:'none',cursor:'pointer',zIndex:10 }}/>}
+      </div>
+
+      {/* Nav */}
+      <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+        <button onClick={()=>setSlide(s=>Math.max(s-1,0))} disabled={slide===0||loading} style={{ background:'none',border:'1.5px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.5)',width:34,height:34,borderRadius:'50%',cursor:'pointer',opacity:slide===0||loading?0.3:1,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center' }}>‹</button>
+        <div style={{ display:'flex', gap:6 }}>
+          {Array.from({length:TOTAL}).map((_,i)=>(
+            <div key={i} onClick={()=>!loading&&setSlide(i)} style={{ width:i===slide?20:6,height:6,borderRadius:100,background:i===slide?BLUE:'rgba(255,255,255,0.15)',transition:'all 0.25s',cursor:'pointer' }}/>
+          ))}
+        </div>
+        <button onClick={()=>setSlide(s=>Math.min(s+1,TOTAL-1))} disabled={slide===TOTAL-1||loading} style={{ background:'none',border:'1.5px solid rgba(255,255,255,0.12)',color:'rgba(255,255,255,0.5)',width:34,height:34,borderRadius:'50%',cursor:'pointer',opacity:slide===TOTAL-1||loading?0.3:1,fontSize:16,display:'flex',alignItems:'center',justifyContent:'center' }}>›</button>
+        <button onClick={fetchNews} disabled={loading} style={{ marginLeft:8, background:'rgba(59,158,255,0.1)',border:'1.5px solid rgba(59,158,255,0.25)',color:BLUE,borderRadius:100,padding:'5px 16px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'DM Sans,sans-serif',letterSpacing:'0.08em',textTransform:'uppercase',opacity:loading?0.4:1 }}>↻ Regen</button>
+      </div>
+
+      <div style={{ color:'rgba(255,255,255,0.15)', fontSize:11 }}>← → keys · click sides · swipe on mobile</div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

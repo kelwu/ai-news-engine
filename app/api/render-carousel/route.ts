@@ -42,6 +42,8 @@ export async function POST() {
     .select("id, carousel_data, image_urls, image_url")
     .eq("scheduled_for", today)
     .in("status", ["voiced", "rendered"])
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });

@@ -33,6 +33,8 @@ export default function ApproveButton({
   const router = useRouter();
 
   const assetsExist =
+    status === "rendered" ||
+    status === "published" ||
     (format === "reel" && hasVideo) ||
     (format === "carousel" && hasCarousel) ||
     (format === "both" && hasVideo && hasCarousel);

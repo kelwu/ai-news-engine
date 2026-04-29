@@ -8,7 +8,10 @@
       "mcp__claude_ai_Supabase__confirm_cost",
       "mcp__claude_ai_Supabase__create_project",
       "Skill(update-config)",
-      "mcp__claude_ai_Supabase__apply_migration"
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "WebFetch(domain:api.anthropic.com)",
+      "mcp__claude_ai_Supabase__list_projects"
     ]
   }
 }

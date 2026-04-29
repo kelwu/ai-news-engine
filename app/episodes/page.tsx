@@ -31,8 +31,8 @@ export default async function EpisodesPage() {
       {!episodes?.length ? (
         <p className="text-zinc-500">No episodes yet.</p>
       ) : (
-        <div className="rounded-xl border border-zinc-800 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border border-zinc-800 overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm min-w-[540px]">
             <thead className="bg-zinc-900 text-zinc-500 text-xs uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3 text-left">Date</th>

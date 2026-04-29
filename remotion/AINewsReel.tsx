@@ -175,7 +175,7 @@ export const AINewsReel: React.FC<AINewsReelProps> = ({
           left: 0,
           right: 0,
           height: 5,
-          background: "linear-gradient(90deg, #1A8EFF 0%, transparent 80%)",
+          background: "linear-gradient(90deg, #EA580C 0%, transparent 80%)",
           zIndex: 2,
         }}
       />
@@ -197,7 +197,7 @@ export const AINewsReel: React.FC<AINewsReelProps> = ({
             width: 6,
             height: 6,
             borderRadius: "50%",
-            backgroundColor: "#3DBEFF",
+            backgroundColor: "#EA580C",
           }}
         />
         <span
@@ -226,8 +226,8 @@ export const AINewsReel: React.FC<AINewsReelProps> = ({
       >
         <div
           style={{
-            backgroundColor: "rgba(26,142,255,0.15)",
-            border: "1px solid rgba(26,142,255,0.3)",
+            backgroundColor: "rgba(234,88,12,0.15)",
+            border: "1px solid rgba(234,88,12,0.3)",
             borderRadius: 8,
             padding: "6px 14px",
             display: "inline-block",
@@ -236,7 +236,7 @@ export const AINewsReel: React.FC<AINewsReelProps> = ({
         >
           <span
             style={{
-              color: "#1A8EFF",
+              color: "#EA580C",
               fontFamily,
               fontSize: 18,
               fontWeight: 700,
@@ -327,7 +327,7 @@ export const AINewsReel: React.FC<AINewsReelProps> = ({
           style={{
             height: "100%",
             width: `${progress * 100}%`,
-            backgroundColor: "#1A8EFF",
+            backgroundColor: "#EA580C",
           }}
         />
       </div>

@@ -44,18 +44,28 @@ async function fetchTLDR(): Promise<Story[]> {
   }));
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const today = new Date().toISOString().split("T")[0];
 
-  const { data: existing } = await supabase
-    .from("episodes")
-    .select("id")
-    .eq("scheduled_for", today)
-    .neq("status", "error")
-    .maybeSingle();
+  let force = false;
+  try {
+    const body = await req.json();
+    force = Boolean(body?.force);
+  } catch { /* no body is fine */ }
 
-  if (existing) {
-    return NextResponse.json({ status: "already_ingested", episode_id: existing.id });
+  if (!force) {
+    const { data: existing } = await supabase
+      .from("episodes")
+      .select("id")
+      .eq("scheduled_for", today)
+      .neq("status", "error")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ status: "already_ingested", episode_id: existing.id });
+    }
   }
 
   const results = await Promise.allSettled([fetchNewsAPI(), fetchTLDR()]);
