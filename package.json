@@ -11,7 +11,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
     "@fal-ai/client": "^1.9.5",
-    "@remotion/cli": "^4.0.448",
     "@remotion/google-fonts": "^4.0.448",
     "@remotion/lambda": "^4.0.448",
     "@supabase/supabase-js": "^2.103.3",
@@ -22,6 +21,7 @@
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
+    "@remotion/cli": "^4.0.448",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

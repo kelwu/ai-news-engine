@@ -4,5 +4,13 @@
       "path": "/api/ingest",
       "schedule": "0 15 */2 * *"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/generate-script/route.ts": { "maxDuration": 300 },
+    "app/api/generate-image/route.ts": { "maxDuration": 120 },
+    "app/api/voiceover/route.ts": { "maxDuration": 60 },
+    "app/api/render/route.ts": { "maxDuration": 300 },
+    "app/api/render-carousel/route.ts": { "maxDuration": 300 },
+    "app/api/confirm-stories/route.ts": { "maxDuration": 60 }
+  }
 }
