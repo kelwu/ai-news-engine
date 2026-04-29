@@ -26,7 +26,18 @@ Format recommendation:
 - "carousel": educational, multiple distinct points, how-it-works
 - "both": high-importance story worth maximum reach
 
-Carousel candidates: suggest 3-5 stories from the list (by index) that would work well as carousel slides. The user will make the final selection. Give a brief reason per story (1 sentence) explaining why it's a good carousel candidate.`;
+Carousel candidates: suggest 3-5 stories from the list (by index) that would work well as carousel slides. The user will make the final selection. Give a brief reason per story (1 sentence) explaining why it's a good carousel candidate.
+
+Caption writing rules (Instagram best practices — applies to both caption fields):
+- Line 1 is the hook — must be under 125 characters (the "more" cutoff). Make it a bold claim, surprising stat, or question that demands a tap.
+- Use blank lines between paragraphs for readability.
+- End with one engagement question (e.g. "Which story surprised you most? Drop it below 👇").
+- Hashtags go in the hashtags field, not in either caption field. 5–8 tightly relevant tags.
+- Never use em-dashes or asterisks. Write in second person, conversational tone.
+
+caption_reel (the "caption" field): Written for a video post. Hook teases what the viewer is about to watch. CTA is "Watch till the end" or "Sound on 🔊". Assumes the viewer is watching a 45-second reel.
+
+caption_carousel (the "caption_carousel" field): Written for a swipeable carousel. Hook teases the stories inside. Include "Swipe → for the full breakdown" after the hook. Add "Save this for later 🔖" as a second CTA. Tone is more editorial and educational — you're curating a briefing, not narrating a video.`;
 
 const FETCH_ARTICLE_TOOL: Anthropic.Tool = {
   name: "fetch_article",
@@ -56,8 +67,9 @@ const FINALIZE_OUTPUT_TOOL: Anthropic.Tool = {
         required: ["headline", "source", "url"],
       },
       script: { type: "string", description: "45-second voiceover script, 110-130 words" },
-      caption: { type: "string", description: "Instagram caption for the reel post" },
-      hashtags: { type: "string", description: "Hashtags string, space-separated" },
+      caption: { type: "string", description: "Reel caption. Hook under 125 chars, watch CTA, engagement question. No hashtags." },
+      caption_carousel: { type: "string", description: "Carousel caption. Hook under 125 chars, swipe CTA, save CTA, engagement question. No hashtags." },
+      hashtags: { type: "string", description: "Hashtags string, space-separated. Used for both formats." },
       recommended_format: { type: "string", enum: ["reel", "carousel", "both"] },
       format_reason: { type: "string", description: "One sentence explaining the format recommendation" },
       carousel_candidates: {
@@ -73,7 +85,7 @@ const FINALIZE_OUTPUT_TOOL: Anthropic.Tool = {
         },
       },
     },
-    required: ["selected_story", "script", "caption", "hashtags", "recommended_format", "format_reason", "carousel_candidates"],
+    required: ["selected_story", "script", "caption", "caption_carousel", "hashtags", "recommended_format", "format_reason", "carousel_candidates"],
   },
 };
 
@@ -102,6 +114,7 @@ type FinalOutput = {
   selected_story: { headline: string; source: string; url: string };
   script: string;
   caption: string;
+  caption_carousel: string;
   hashtags: string;
   recommended_format: string;
   format_reason: string;
@@ -183,6 +196,7 @@ export async function POST() {
       selected_story: result.selected_story,
       script: result.script,
       caption: result.caption,
+      caption_carousel: result.caption_carousel,
       hashtags: result.hashtags,
       recommended_format: result.recommended_format ?? "reel",
       format_reason: result.format_reason ?? null,

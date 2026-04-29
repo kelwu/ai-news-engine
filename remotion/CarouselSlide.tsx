@@ -38,8 +38,8 @@ export type CarouselSlideProps = {
 // ── Shared sub-components ─────────────────────────────────────────
 function CategoryLabel({ label }: { label: string }) {
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", alignSelf: "flex-start", border: `2px solid ${S_BLUE}`, padding: "6px 16px", borderRadius: 0 }}>
-      <span style={{ color: S_BLUE, fontSize: 20, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", fontFamily }}>{label}</span>
+    <div style={{ display: "inline-flex", alignItems: "center", alignSelf: "flex-start", border: `2px solid ${S_BLUE}`, padding: "8px 20px", borderRadius: 0 }}>
+      <span style={{ color: S_BLUE, fontSize: 28, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", fontFamily }}>{label}</span>
     </div>
   );
 }
@@ -51,17 +51,21 @@ function DataCardLight({ label, value }: { label: string; value: string }) {
       display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16,
       border: "1px solid rgba(13,27,42,0.08)", boxShadow: "0 2px 12px rgba(13,27,42,0.06)",
     }}>
-      <span style={{ color: S_MUTED, fontSize: 22, fontWeight: 500, lineHeight: 1.3, fontFamily }}>{label}</span>
-      <span style={{ color: S_BLUE, fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", flexShrink: 0, textAlign: "right", maxWidth: 260, lineHeight: 1.2, fontFamily }}>{value}</span>
+      <span style={{ color: S_MUTED, fontSize: 28, fontWeight: 500, lineHeight: 1.3, fontFamily }}>{label}</span>
+      <span style={{ color: S_BLUE, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", flexShrink: 0, textAlign: "right", maxWidth: 280, lineHeight: 1.2, fontFamily }}>{value}</span>
     </div>
   );
 }
 
 function KelsTakeLight({ text }: { text: string }) {
   return (
-    <div style={{ background: S_TEXT, borderRadius: 14, padding: "20px 24px" }}>
-      <div style={{ color: S_BLUE, fontSize: 18, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10, fontFamily }}>Kel's Take</div>
-      <p style={{ color: "#fff", fontSize: 22, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily }}>{text}</p>
+    <div style={{ background: S_TEXT, borderRadius: 12, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14 }}>
+      <span style={{ color: S_BLUE, fontSize: 20, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", flexShrink: 0, fontFamily }}>Signal</span>
+      <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
+      <p style={{
+        color: "#fff", fontSize: 24, fontWeight: 400, lineHeight: 1.4, margin: 0, fontFamily,
+        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+      } as React.CSSProperties}>{text}</p>
     </div>
   );
 }
@@ -73,59 +77,50 @@ function CoverSlide({ coverHeadline, date, stories, images }: Pick<CarouselSlide
       {/* Top accent stripe */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 5, background: `linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)`, zIndex: 2 }} />
 
-      {/* Full-bleed image */}
+      {/* Full-bleed image at reduced opacity — cream background shows through */}
       {images.cover ? (
         <AbsoluteFill>
-          <Img src={images.cover} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" }} />
+          <Img src={images.cover} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", opacity: 0.32 }} />
         </AbsoluteFill>
       ) : null}
-      {/* Cream gradient — transparent at top, fully cream from ~45% down */}
-      <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(242,239,232,0) 0%, rgba(242,239,232,0.6) 35%, rgba(242,239,232,0.97) 50%, rgba(242,239,232,1) 65%)" }} />
 
-      <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-        {/* Spacer — lets image show through at top */}
-        <div style={{ height: 340, flexShrink: 0 }} />
+      {/* Content — full slide */}
+      <div style={{ position: "relative", zIndex: 1, height: "100%", display: "flex", flexDirection: "column", padding: "52px 60px" }}>
+        {/* Brand row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: S_BLUE }} />
+          <span style={{ color: S_TEXT, fontSize: 30, fontWeight: 700, fontFamily }}>@productbykel</span>
+          <div style={{ width: 1, height: 22, background: S_MUTED, flexShrink: 0 }} />
+          <span style={{ color: S_BLUE, fontSize: 30, fontWeight: 700, letterSpacing: "0.08em", fontFamily }}>TECH BRIEF · {date.toUpperCase()}</span>
+        </div>
 
-        {/* Content — on cream */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 60px 44px" }}>
-          {/* Brand row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: S_BLUE }} />
-            <span style={{ color: S_TEXT, fontSize: 22, fontWeight: 700, fontFamily }}>@productbykel</span>
-            <div style={{ width: 1, height: 18, background: S_MUTED, flexShrink: 0 }} />
-            <span style={{ color: S_BLUE, fontSize: 22, fontWeight: 700, letterSpacing: "0.08em", fontFamily }}>TECH BRIEF · {date.toUpperCase()}</span>
-          </div>
-
-          {/* Headline */}
-          <h1 style={{ color: S_TEXT, fontSize: 80, fontWeight: 800, lineHeight: 1.02, letterSpacing: "-0.03em", margin: "0 0 16px", fontFamily }}>
+        {/* Headline block — centered vertically */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <h1 style={{ color: S_TEXT, fontSize: 92, fontWeight: 800, lineHeight: 1.02, letterSpacing: "-0.03em", margin: "0 0 20px", fontFamily }}>
             {coverHeadline}
           </h1>
-
-          {/* Three dots */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: S_BLUE }} />
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: S_BLUE }} />
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: S_BLUE }} />
           </div>
-
-          {/* Subtext */}
-          <p style={{ color: S_MUTED, fontSize: 26, fontWeight: 400, lineHeight: 1.5, margin: "0 0 auto", fontFamily }}>
+          <p style={{ color: S_TEXT, fontSize: 30, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily }}>
             Here's what every PM and builder needs to know →
           </p>
+        </div>
 
-          {/* Stat cards */}
-          <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
-            {stories.map((s, i) => (
-              <div key={i} style={{
-                flex: 1, background: S_CARD, borderRadius: 14, padding: "16px 18px",
-                border: "1px solid rgba(13,27,42,0.08)",
-                boxShadow: "0 2px 12px rgba(13,27,42,0.06)",
-              }}>
-                <div style={{ color: S_BLUE, fontSize: 38, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontFamily }}>{s.coverStat?.number}</div>
-                <div style={{ color: S_MUTED, fontSize: 20, marginTop: 8, lineHeight: 1.3, fontFamily }}>{s.coverStat?.label}</div>
-              </div>
-            ))}
-          </div>
+        {/* Stat cards — bottom */}
+        <div style={{ display: "flex", gap: 12 }}>
+          {stories.map((s, i) => (
+            <div key={i} style={{
+              flex: 1, background: "rgba(255,255,255,0.82)", borderRadius: 14, padding: "16px 18px",
+              border: "1px solid rgba(13,27,42,0.08)",
+              boxShadow: "0 2px 12px rgba(13,27,42,0.06)",
+            }}>
+              <div style={{ color: S_BLUE, fontSize: 38, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontFamily }}>{s.coverStat?.number}</div>
+              <div style={{ color: S_MUTED, fontSize: 26, marginTop: 8, lineHeight: 1.3, fontFamily }}>{s.coverStat?.label}</div>
+            </div>
+          ))}
         </div>
       </div>
     </AbsoluteFill>
@@ -139,20 +134,20 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
       {/* Top accent stripe */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 5, background: `linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)` }} />
 
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "52px 60px 44px" }}>
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "48px 60px 40px" }}>
         {/* Top row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
           <CategoryLabel label={story.category} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-            <span style={{ color: S_MUTED2, fontSize: 20, fontWeight: 500, fontFamily }}>{slideNum}/{total}</span>
+            <span style={{ color: S_MUTED2, fontSize: 28, fontWeight: 500, fontFamily }}>{slideNum}/{total}</span>
             {story.source && (
-              <span style={{ color: S_MUTED, fontSize: 16, fontWeight: 500, fontFamily }}>via {story.source}</span>
+              <span style={{ color: S_MUTED, fontSize: 26, fontWeight: 500, fontFamily }}>via {story.source}</span>
             )}
           </div>
         </div>
 
         {/* Headline + thumbnail */}
-        <div style={{ display: "flex", gap: 28, alignItems: "flex-start", marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 28, alignItems: "flex-start", marginBottom: 16 }}>
           <h2 style={{
             flex: 1, color: S_TEXT, fontSize: 52, fontWeight: 800, lineHeight: 1.06,
             letterSpacing: "-0.03em", margin: 0, fontFamily,
@@ -164,7 +159,7 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
             {!story.headlinePrefix && story.headline}
           </h2>
           {imgUrl ? (
-            <div style={{ width: 210, height: 168, borderRadius: 16, overflow: "hidden", flexShrink: 0, marginTop: 4, boxShadow: "0 8px 28px rgba(13,27,42,0.18)", border: "1px solid rgba(13,27,42,0.08)" }}>
+            <div style={{ width: 200, height: 160, borderRadius: 16, overflow: "hidden", flexShrink: 0, marginTop: 4, boxShadow: "0 8px 28px rgba(13,27,42,0.18)", border: "1px solid rgba(13,27,42,0.08)" }}>
               <Img src={imgUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
           ) : null}
@@ -174,24 +169,26 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
         {story.body && (
           <p style={{
             color: S_TEXT, fontSize: 28, fontWeight: 400, lineHeight: 1.55,
-            marginBottom: 24, fontFamily, opacity: 0.82,
+            marginBottom: 16, fontFamily, opacity: 0.82,
           }}>
             {story.body}
           </p>
         )}
 
         {/* Data cards */}
-        <div style={{ display: "flex", flexDirection: "row", gap: 10, marginBottom: 24 }}>
+        <div style={{ display: "flex", flexDirection: "row", gap: 10, marginBottom: 16 }}>
           {(story.cards || []).map((c, i) => <DataCardLight key={i} label={c.key} value={c.value} />)}
         </div>
 
-        {/* Kel's Take */}
-        <KelsTakeLight text={story.kelsTake} />
+        {/* The Signal — pinned to fill remaining space */}
+        <div style={{ marginTop: "auto" }}>
+          <KelsTakeLight text={story.kelsTake} />
+        </div>
 
         {/* Bottom brand */}
-        <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: BLUE, flexShrink: 0 }} />
-          <span style={{ color: S_TEXT, fontSize: 20, fontWeight: 700, fontFamily }}>@productbykel</span>
+          <span style={{ color: S_TEXT, fontSize: 30, fontWeight: 700, fontFamily }}>@productbykel</span>
         </div>
       </div>
     </AbsoluteFill>
@@ -232,13 +229,13 @@ function CtaSlide() {
             {platforms.map((p, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 18,
-                background: S_CARD, borderRadius: 14, padding: "20px 24px",
+                background: S_CARD, borderRadius: 14, padding: "24px 28px",
                 border: "1px solid rgba(13,27,42,0.08)",
                 boxShadow: "0 2px 8px rgba(13,27,42,0.05)",
               }}>
-                <span style={{ fontSize: 26, width: 32, textAlign: "center" }}>{p.icon}</span>
-                <span style={{ color: S_MUTED, fontSize: 20, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", width: 120, fontFamily }}>{p.name}</span>
-                <span style={{ color: S_TEXT, fontSize: 22, fontWeight: 600, fontFamily }}>{p.handle}</span>
+                <span style={{ fontSize: 30, width: 36, textAlign: "center" }}>{p.icon}</span>
+                <span style={{ color: S_MUTED, fontSize: 26, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", width: 140, fontFamily }}>{p.name}</span>
+                <span style={{ color: S_TEXT, fontSize: 28, fontWeight: 600, fontFamily }}>{p.handle}</span>
               </div>
             ))}
           </div>

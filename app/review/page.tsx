@@ -45,10 +45,34 @@ export default async function ReviewPage() {
           {story?.source && <p className="text-zinc-500 text-sm">via {story.source}</p>}
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-2">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
           <p className="text-xs text-zinc-500 uppercase tracking-wider">Caption preview</p>
-          <p className="text-zinc-300 text-sm leading-relaxed">{episode.caption}</p>
-          <p className="text-zinc-600 text-xs">{episode.hashtags}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500 font-medium">Reel</p>
+              <div className="bg-zinc-950 rounded-lg p-4 space-y-3 text-sm h-full">
+                <p className="text-zinc-200 leading-relaxed whitespace-pre-wrap">{episode.caption}</p>
+                {episode.hashtags && (
+                  <p className="text-blue-400 text-xs leading-relaxed">{episode.hashtags}</p>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500 font-medium">Carousel</p>
+              <div className="bg-zinc-950 rounded-lg p-4 space-y-3 text-sm h-full">
+                {(episode as { caption_carousel?: string }).caption_carousel ? (
+                  <>
+                    <p className="text-zinc-200 leading-relaxed whitespace-pre-wrap">{(episode as { caption_carousel?: string }).caption_carousel}</p>
+                    {episode.hashtags && (
+                      <p className="text-blue-400 text-xs leading-relaxed">{episode.hashtags}</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-zinc-600 text-xs italic">Run the pipeline again to generate a carousel caption.</p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -123,15 +147,16 @@ export default async function ReviewPage() {
       {hasCarousel && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-3">
           <p className="text-xs text-zinc-500 uppercase tracking-wider">Carousel slides ({carouselUrls.length})</p>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {carouselUrls.map((url, i) => (
-              <div key={i} className="shrink-0 space-y-2">
-                <div className="w-40 h-40 rounded-lg overflow-hidden border border-zinc-700 bg-zinc-800">
+              <div key={i} className="space-y-2">
+                <div className="aspect-square rounded-lg overflow-hidden border border-zinc-700 bg-zinc-800">
                   <img src={url} alt={`Slide ${i + 1}`} className="w-full h-full object-cover" />
                 </div>
                 <a
                   href={url}
-                  download={`slide-${i + 1}.jpg`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="block text-center text-xs text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   Slide {i + 1} ↓

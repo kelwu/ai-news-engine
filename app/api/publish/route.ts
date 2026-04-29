@@ -89,31 +89,32 @@ export async function POST(req: NextRequest) {
 
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
-    .select("id, video_url, carousel_urls, caption, hashtags")
+    .select("id, video_url, carousel_urls, caption, caption_carousel, hashtags")
     .eq("id", episode_id)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
   if (!episode) return NextResponse.json({ error: "Episode not found" }, { status: 404 });
 
-  const episodeWithClosing = {
-    ...episode,
-    caption: closing_caption
-      ? `${episode.caption}\n\n${closing_caption}`
-      : episode.caption,
-  };
+  const reelCaption = closing_caption
+    ? `${episode.caption}\n\n${closing_caption}`
+    : episode.caption;
+
+  const carouselCaption = closing_caption
+    ? `${episode.caption_carousel ?? episode.caption}\n\n${closing_caption}`
+    : (episode.caption_carousel ?? episode.caption);
 
   try {
     const result: { reel_id?: string; carousel_id?: string } = {};
 
     if (format === "reel" || format === "both") {
       if (!episode.video_url) return NextResponse.json({ error: "No video URL — render the reel first" }, { status: 400 });
-      result.reel_id = await publishReel(episodeWithClosing);
+      result.reel_id = await publishReel({ ...episode, caption: reelCaption });
     }
 
     if (format === "carousel" || format === "both") {
       if (!episode.carousel_urls?.length) return NextResponse.json({ error: "No carousel URLs — render the carousel first" }, { status: 400 });
-      result.carousel_id = await publishCarousel(episodeWithClosing);
+      result.carousel_id = await publishCarousel({ ...episode, caption: carouselCaption });
     }
 
     await supabase
