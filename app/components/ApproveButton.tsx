@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Format = "reel" | "carousel" | "both";
+type PublishMode = "now" | "schedule";
 
 const DEFAULT_CLOSING = `Follow @productbykel for your daily Tech Brief
 
@@ -16,6 +17,8 @@ export default function ApproveButton({
   formatReason,
   hasVideo,
   hasCarousel,
+  scheduledAt,
+  scheduledFormat,
 }: {
   episodeId: string;
   status: string;
@@ -23,13 +26,18 @@ export default function ApproveButton({
   formatReason?: string;
   hasVideo: boolean;
   hasCarousel: boolean;
+  scheduledAt: string | null;
+  scheduledFormat: string | null;
 }) {
   const defaultFormat = (recommendedFormat as Format) ?? "reel";
-  const [format, setFormat] = useState<Format>(defaultFormat);
+  const [format, setFormat] = useState<Format>((scheduledFormat as Format) ?? defaultFormat);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState("");
   const [error, setError] = useState("");
   const [closingCaption, setClosingCaption] = useState(DEFAULT_CLOSING);
+  const [mode, setMode] = useState<PublishMode>("now");
+  const [scheduleTime, setScheduleTime] = useState("");
+  const [currentSchedule, setCurrentSchedule] = useState<string | null>(scheduledAt);
   const router = useRouter();
 
   const assetsExist =
@@ -91,6 +99,51 @@ export default function ApproveButton({
     setRunning(false);
   }
 
+  async function schedulePost() {
+    if (!scheduleTime) { setError("Pick a date and time first"); return; }
+    setRunning(true);
+    setError("");
+    setLog("Scheduling…");
+    const res = await fetch("/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        episode_id: episodeId,
+        scheduled_publish_at: new Date(scheduleTime).toISOString(),
+        format,
+        closing_caption: closingCaption,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Schedule failed");
+    } else {
+      setCurrentSchedule(new Date(scheduleTime).toISOString());
+      router.refresh();
+    }
+    setLog("");
+    setRunning(false);
+  }
+
+  async function cancelSchedule() {
+    setRunning(true);
+    setError("");
+    const res = await fetch("/api/schedule", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ episode_id: episodeId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Cancel failed");
+    } else {
+      setCurrentSchedule(null);
+      setScheduleTime("");
+      router.refresh();
+    }
+    setRunning(false);
+  }
+
   if (isPublished) {
     return <p className="text-emerald-400 font-semibold text-sm">Published to Instagram ✓</p>;
   }
@@ -137,8 +190,9 @@ export default function ApproveButton({
           {running ? log || "Rendering…" : "Render Preview"}
         </button>
       ) : (
-        /* Phase 2: Publish */
-        <div className="space-y-3">
+        /* Phase 2: Publish or Schedule */
+        <div className="space-y-4">
+          {/* Closing caption */}
           <div className="space-y-1.5">
             <label className="text-xs text-zinc-500 uppercase tracking-wider block">
               Closing caption (appended to every post)
@@ -150,22 +204,78 @@ export default function ApproveButton({
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 resize-none focus:outline-none focus:border-zinc-500 font-mono"
             />
           </div>
-          <div className="flex gap-3 items-center">
-            <button
-              onClick={publish}
-              disabled={running}
-              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
-            >
-              {running ? log || "Publishing…" : "Publish to Instagram"}
-            </button>
-            <button
-              onClick={renderPreview}
-              disabled={running}
-              className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
-            >
-              Re-render
-            </button>
+
+          {/* Scheduled indicator */}
+          {currentSchedule && (
+            <div className="flex items-center justify-between rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3">
+              <div>
+                <p className="text-xs text-amber-400 font-medium">Scheduled</p>
+                <p className="text-sm text-amber-200 mt-0.5">
+                  {new Date(currentSchedule).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                  {" · "}{scheduledFormat ?? format}
+                </p>
+              </div>
+              <button
+                onClick={cancelSchedule}
+                disabled={running}
+                className="text-xs text-zinc-500 hover:text-red-400 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Mode toggle */}
+          <div className="flex gap-2">
+            {(["now", "schedule"] as PublishMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                disabled={running}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  mode === m ? "bg-zinc-600 text-white" : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {m === "now" ? "Publish Now" : "Schedule"}
+              </button>
+            ))}
           </div>
+
+          {mode === "now" ? (
+            <div className="flex gap-3 items-center">
+              <button
+                onClick={publish}
+                disabled={running}
+                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
+              >
+                {running ? log || "Publishing…" : "Publish to Instagram"}
+              </button>
+              <button
+                onClick={renderPreview}
+                disabled={running}
+                className="text-zinc-500 hover:text-zinc-300 text-sm transition-colors"
+              >
+                Re-render
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-3 items-center">
+              <input
+                type="datetime-local"
+                value={scheduleTime}
+                onChange={(e) => setScheduleTime(e.target.value)}
+                disabled={running}
+                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-500"
+              />
+              <button
+                onClick={schedulePost}
+                disabled={running || !scheduleTime}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
+              >
+                {running ? log || "Scheduling…" : currentSchedule ? "Reschedule" : "Schedule Post"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

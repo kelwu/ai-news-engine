@@ -177,6 +177,8 @@ export default async function ReviewPage() {
           formatReason={episode.format_reason}
           hasVideo={hasVideo}
           hasCarousel={hasCarousel}
+          scheduledAt={(episode as { scheduled_publish_at?: string }).scheduled_publish_at ?? null}
+          scheduledFormat={(episode as { scheduled_format?: string }).scheduled_format ?? null}
         />
       </div>
     </div>
