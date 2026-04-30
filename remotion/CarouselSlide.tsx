@@ -1,14 +1,14 @@
 import { AbsoluteFill, Img } from "remotion";
-import { loadFont } from "@remotion/google-fonts/DmSans";
+import { loadFont } from "@remotion/google-fonts/PlusJakartaSans";
 
 const { fontFamily } = loadFont();
 
 // ── Design tokens ─────────────────────────────────────────────────
-const BLUE    = "#EA580C";   // burnt orange — brand accent
-const S_BLUE  = "#EA580C";   // same orange throughout
-const S_BG    = "#F2EFE8";   // cream background
-const S_CARD  = "#FFFFFF";   // white cards
-const S_TEXT  = "#0D1B2A";   // dark navy text
+const BLUE    = "#EA580C";
+const S_BLUE  = "#EA580C";
+const S_BG    = "#F2EFE8";
+const S_CARD  = "#FFFFFF";
+const S_TEXT  = "#0D1B2A";
 const S_MUTED = "rgba(13,27,42,0.48)";
 const S_MUTED2 = "rgba(13,27,42,0.25)";
 
@@ -38,34 +38,31 @@ export type CarouselSlideProps = {
 // ── Shared sub-components ─────────────────────────────────────────
 function CategoryLabel({ label }: { label: string }) {
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", alignSelf: "flex-start", border: `2px solid ${S_BLUE}`, padding: "8px 20px", borderRadius: 0 }}>
-      <span style={{ color: S_BLUE, fontSize: 28, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", fontFamily }}>{label}</span>
+    <div style={{ display: "inline-flex", alignItems: "center", alignSelf: "flex-start", border: `2px solid ${S_BLUE}`, padding: "6px 16px", borderRadius: 0 }}>
+      <span style={{ color: S_BLUE, fontSize: 20, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", fontFamily }}>{label}</span>
     </div>
   );
 }
 
+// Vertical card: label on top, large value below
 function DataCardLight({ label, value }: { label: string; value: string }) {
   return (
     <div style={{
-      flex: 1, background: S_CARD, borderRadius: 14, padding: "18px 24px",
-      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16,
+      flex: 1, background: S_CARD, borderRadius: 14, padding: "20px 20px",
+      display: "flex", flexDirection: "column", gap: 8,
       border: "1px solid rgba(13,27,42,0.08)", boxShadow: "0 2px 12px rgba(13,27,42,0.06)",
     }}>
-      <span style={{ color: S_MUTED, fontSize: 28, fontWeight: 500, lineHeight: 1.3, fontFamily }}>{label}</span>
-      <span style={{ color: S_BLUE, fontSize: 28, fontWeight: 700, letterSpacing: "-0.02em", flexShrink: 0, textAlign: "right", maxWidth: 280, lineHeight: 1.2, fontFamily }}>{value}</span>
+      <span style={{ color: S_MUTED, fontSize: 22, fontWeight: 500, lineHeight: 1.3, fontFamily }}>{label}</span>
+      <span style={{ color: S_BLUE, fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontFamily }}>{value}</span>
     </div>
   );
 }
 
 function KelsTakeLight({ text }: { text: string }) {
   return (
-    <div style={{ background: S_TEXT, borderRadius: 12, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-      <span style={{ color: S_BLUE, fontSize: 20, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", flexShrink: 0, fontFamily }}>Signal</span>
-      <div style={{ width: 1, height: 22, background: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
-      <p style={{
-        color: "#fff", fontSize: 24, fontWeight: 400, lineHeight: 1.4, margin: 0, fontFamily,
-        display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-      } as React.CSSProperties}>{text}</p>
+    <div style={{ background: S_TEXT, borderRadius: 14, padding: "20px 24px" }}>
+      <div style={{ color: S_BLUE, fontSize: 18, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10, fontFamily }}>Signal</div>
+      <p style={{ color: "#fff", fontSize: 26, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily }}>{text}</p>
     </div>
   );
 }
@@ -74,24 +71,29 @@ function KelsTakeLight({ text }: { text: string }) {
 function CoverSlide({ coverHeadline, date, stories, images }: Pick<CarouselSlideProps, "coverHeadline" | "date" | "stories" | "images">) {
   return (
     <AbsoluteFill style={{ background: S_BG, overflow: "hidden" }}>
-      {/* Top accent stripe */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 5, background: `linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)`, zIndex: 2 }} />
-
-      {/* Full-bleed image at reduced opacity — cream background shows through */}
+      {/* Full-bleed image */}
       {images.cover ? (
         <AbsoluteFill>
-          <Img src={images.cover} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", opacity: 0.32 }} />
+          <Img src={images.cover} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 40%" }} />
         </AbsoluteFill>
       ) : null}
 
-      {/* Content — full slide */}
+      {/* Cream gradient overlay — editorial feel, image visible but cream dominates */}
+      <AbsoluteFill style={{ background: "linear-gradient(160deg, rgba(242,239,232,0.45) 0%, rgba(242,239,232,0.72) 45%, rgba(242,239,232,0.97) 100%)" }} />
+
+      {/* Top accent stripe */}
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 5, background: `linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)`, zIndex: 2 }} />
+
+      {/* Content */}
       <div style={{ position: "relative", zIndex: 1, height: "100%", display: "flex", flexDirection: "column", padding: "52px 60px" }}>
         {/* Brand row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: S_BLUE }} />
-          <span style={{ color: S_TEXT, fontSize: 30, fontWeight: 700, fontFamily }}>@productbykel</span>
-          <div style={{ width: 1, height: 22, background: S_MUTED, flexShrink: 0 }} />
-          <span style={{ color: S_BLUE, fontSize: 30, fontWeight: 700, letterSpacing: "0.08em", fontFamily }}>TECH BRIEF · {date.toUpperCase()}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: S_BLUE }} />
+            <span style={{ color: S_TEXT, fontSize: 26, fontWeight: 700, fontFamily }}>@productbykel</span>
+          </div>
+          <div style={{ width: 1, height: 20, background: S_MUTED, flexShrink: 0 }} />
+          <span style={{ color: S_BLUE, fontSize: 26, fontWeight: 700, letterSpacing: "0.08em", fontFamily }}>TECH BRIEF · {date.toUpperCase()}</span>
         </div>
 
         {/* Headline block — centered vertically */}
@@ -99,12 +101,12 @@ function CoverSlide({ coverHeadline, date, stories, images }: Pick<CarouselSlide
           <h1 style={{ color: S_TEXT, fontSize: 92, fontWeight: 800, lineHeight: 1.02, letterSpacing: "-0.03em", margin: "0 0 20px", fontFamily }}>
             {coverHeadline}
           </h1>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 24 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: S_BLUE }} />
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: S_BLUE }} />
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: S_BLUE }} />
           </div>
-          <p style={{ color: S_TEXT, fontSize: 30, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily }}>
+          <p style={{ color: S_TEXT, fontSize: 34, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily }}>
             Here's what every PM and builder needs to know →
           </p>
         </div>
@@ -113,12 +115,11 @@ function CoverSlide({ coverHeadline, date, stories, images }: Pick<CarouselSlide
         <div style={{ display: "flex", gap: 12 }}>
           {stories.map((s, i) => (
             <div key={i} style={{
-              flex: 1, background: "rgba(255,255,255,0.82)", borderRadius: 14, padding: "16px 18px",
-              border: "1px solid rgba(13,27,42,0.08)",
-              boxShadow: "0 2px 12px rgba(13,27,42,0.06)",
+              flex: 1, background: "rgba(255,255,255,0.75)", borderRadius: 14, padding: "18px 20px",
+              border: "1px solid rgba(13,27,42,0.1)", boxShadow: "0 2px 16px rgba(13,27,42,0.08)",
             }}>
-              <div style={{ color: S_BLUE, fontSize: 38, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontFamily }}>{s.coverStat?.number}</div>
-              <div style={{ color: S_MUTED, fontSize: 26, marginTop: 8, lineHeight: 1.3, fontFamily }}>{s.coverStat?.label}</div>
+              <div style={{ color: S_BLUE, fontSize: 48, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontFamily }}>{s.coverStat?.number}</div>
+              <div style={{ color: S_MUTED, fontSize: 26, marginTop: 10, lineHeight: 1.3, fontFamily }}>{s.coverStat?.label}</div>
             </div>
           ))}
         </div>
@@ -135,23 +136,19 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 5, background: `linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)` }} />
 
       <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "48px 60px 40px" }}>
-        {/* Top row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+
+        {/* ZONE 1: Header — fixed */}
+        <div style={{ flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <CategoryLabel label={story.category} />
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-            <span style={{ color: S_MUTED2, fontSize: 28, fontWeight: 500, fontFamily }}>{slideNum}/{total}</span>
-            {story.source && (
-              <span style={{ color: S_MUTED, fontSize: 26, fontWeight: 500, fontFamily }}>via {story.source}</span>
-            )}
-          </div>
+          <span style={{ color: S_MUTED2, fontSize: 20, fontWeight: 500, fontFamily }}>{slideNum}/{total}</span>
         </div>
 
-        {/* Headline + thumbnail */}
-        <div style={{ display: "flex", gap: 28, alignItems: "flex-start", marginBottom: 16 }}>
+        {/* ZONE 2: Headline + thumbnail — fixed */}
+        <div style={{ flexShrink: 0, display: "flex", gap: 28, alignItems: "flex-start", marginBottom: 20 }}>
           <h2 style={{
-            flex: 1, color: S_TEXT, fontSize: 52, fontWeight: 800, lineHeight: 1.06,
+            flex: 1, color: S_TEXT, fontSize: 52, fontWeight: 800, lineHeight: 1.04,
             letterSpacing: "-0.03em", margin: 0, fontFamily,
-            display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
+            display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
           } as React.CSSProperties}>
             {story.headlinePrefix && <>{story.headlinePrefix} </>}
             {story.headlineHighlight && <span style={{ color: S_BLUE }}>{story.headlineHighlight}</span>}
@@ -159,36 +156,35 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
             {!story.headlinePrefix && story.headline}
           </h2>
           {imgUrl ? (
-            <div style={{ width: 200, height: 160, borderRadius: 16, overflow: "hidden", flexShrink: 0, marginTop: 4, boxShadow: "0 8px 28px rgba(13,27,42,0.18)", border: "1px solid rgba(13,27,42,0.08)" }}>
+            <div style={{ width: 180, height: 144, borderRadius: 14, overflow: "hidden", flexShrink: 0, marginTop: 4, boxShadow: "0 8px 28px rgba(13,27,42,0.18)", border: "1px solid rgba(13,27,42,0.08)" }}>
               <Img src={imgUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
           ) : null}
         </div>
 
-        {/* Body text */}
-        {story.body && (
-          <p style={{
-            color: S_TEXT, fontSize: 28, fontWeight: 400, lineHeight: 1.55,
-            marginBottom: 16, fontFamily, opacity: 0.82,
-          }}>
-            {story.body}
-          </p>
-        )}
+        {/* ZONE 3: Body — flex:1, takes all remaining space */}
+        <div style={{ flex: 1, overflow: "hidden", marginBottom: 20 }}>
+          {story.body && (
+            <p style={{ color: S_MUTED, fontSize: 28, fontWeight: 400, lineHeight: 1.65, margin: 0, fontFamily }}>
+              {story.body}
+            </p>
+          )}
+        </div>
 
-        {/* Data cards */}
-        <div style={{ display: "flex", flexDirection: "row", gap: 10, marginBottom: 16 }}>
+        {/* ZONE 4: Data cards — fixed */}
+        <div style={{ flexShrink: 0, display: "flex", gap: 10, marginBottom: 20 }}>
           {(story.cards || []).map((c, i) => <DataCardLight key={i} label={c.key} value={c.value} />)}
         </div>
 
-        {/* The Signal — pinned to fill remaining space */}
-        <div style={{ marginTop: "auto" }}>
+        {/* ZONE 5: Signal — fixed */}
+        <div style={{ flexShrink: 0 }}>
           <KelsTakeLight text={story.kelsTake} />
         </div>
 
-        {/* Bottom brand */}
-        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 8 }}>
+        {/* ZONE 6: Brand — fixed */}
+        <div style={{ flexShrink: 0, marginTop: 16, display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: BLUE, flexShrink: 0 }} />
-          <span style={{ color: S_TEXT, fontSize: 30, fontWeight: 700, fontFamily }}>@productbykel</span>
+          <span style={{ color: S_TEXT, fontSize: 20, fontWeight: 700, fontFamily }}>@productbykel</span>
         </div>
       </div>
     </AbsoluteFill>
@@ -204,7 +200,6 @@ function CtaSlide() {
   ];
   return (
     <AbsoluteFill style={{ background: S_BG, overflow: "hidden" }}>
-      {/* Top accent stripe */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 5, background: `linear-gradient(90deg, ${S_BLUE} 0%, transparent 80%)`, zIndex: 2 }} />
 
       <div style={{ position: "relative", zIndex: 1, height: "100%", display: "flex", flexDirection: "column", padding: "60px 72px" }}>
@@ -229,13 +224,12 @@ function CtaSlide() {
             {platforms.map((p, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 18,
-                background: S_CARD, borderRadius: 14, padding: "24px 28px",
-                border: "1px solid rgba(13,27,42,0.08)",
-                boxShadow: "0 2px 8px rgba(13,27,42,0.05)",
+                background: S_CARD, borderRadius: 14, padding: "20px 24px",
+                border: "1px solid rgba(13,27,42,0.08)", boxShadow: "0 2px 8px rgba(13,27,42,0.05)",
               }}>
-                <span style={{ fontSize: 30, width: 36, textAlign: "center" }}>{p.icon}</span>
-                <span style={{ color: S_MUTED, fontSize: 26, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", width: 140, fontFamily }}>{p.name}</span>
-                <span style={{ color: S_TEXT, fontSize: 28, fontWeight: 600, fontFamily }}>{p.handle}</span>
+                <span style={{ fontSize: 28, width: 36, textAlign: "center" }}>{p.icon}</span>
+                <span style={{ color: S_MUTED, fontSize: 24, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", width: 140, fontFamily }}>{p.name}</span>
+                <span style={{ color: S_TEXT, fontSize: 26, fontWeight: 600, fontFamily }}>{p.handle}</span>
               </div>
             ))}
           </div>
