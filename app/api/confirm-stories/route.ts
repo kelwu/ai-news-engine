@@ -71,7 +71,8 @@ Generate carousel_data for these exactly 3 stories. Return JSON only, no markdow
       "body": "2-3 sentences explaining what happened and why it matters. Be specific — reference actual details from the article, not vague summaries.",
       "cards": [
         { "key": "descriptive stat label", "value": "$33B" },
-        { "key": "second stat label", "value": "10 yrs" }
+        { "key": "second stat label", "value": "10 yrs" },
+        { "key": "third stat label", "value": "−40%" }
       ],
       "kelsTake": "One punchy PM-specific insight sentence, 15-20 words.",
       "coverStat": { "number": "$33B", "label": "brief cover card description" }

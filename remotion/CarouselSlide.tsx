@@ -147,8 +147,8 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
         <div style={{ flexShrink: 0, display: "flex", gap: 28, alignItems: "flex-start", marginBottom: 20 }}>
           <h2 style={{
             flex: 1, color: S_TEXT, fontSize: 52, fontWeight: 800, lineHeight: 1.04,
-            letterSpacing: "-0.03em", margin: 0, fontFamily,
-            display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+            letterSpacing: "-0.03em", margin: 0, paddingBottom: 4, fontFamily,
+            display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
           } as React.CSSProperties}>
             {story.headlinePrefix && <>{story.headlinePrefix} </>}
             {story.headlineHighlight && <span style={{ color: S_BLUE }}>{story.headlineHighlight}</span>}
