@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 const STEPS = [
   { status: null,       route: "/api/ingest",          label: "Ingest" },
@@ -20,7 +19,6 @@ export default function RunPipeline({
 }) {
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<string[]>([]);
-  const router = useRouter();
 
   async function run() {
     setRunning(true);
@@ -59,7 +57,7 @@ export default function RunPipeline({
       if (step.route === "/api/generate-script") {
         setLog((l) => [...l, "✓ Stories ready — select below"]);
         setRunning(false);
-        router.refresh();
+        window.location.reload();
         return;
       }
 
@@ -68,7 +66,7 @@ export default function RunPipeline({
     }
 
     setRunning(false);
-    router.refresh();
+    window.location.reload();
   }
 
   const label = running

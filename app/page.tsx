@@ -2,6 +2,8 @@ import { getSupabaseServer } from "@/lib/supabase-server";
 import RunPipeline from "./components/RunPipeline";
 import StorySelector from "./components/StorySelector";
 
+export const dynamic = 'force-dynamic';
+
 type Candidate = { story_index: number; reason: string };
 type RawStory = { title: string; summary: string; url: string; source: string; published_at: string };
 
