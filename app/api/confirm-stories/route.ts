@@ -6,6 +6,137 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 type RawStory = { title: string; summary: string; url: string; source: string; published_at: string };
 
+// ── Character budgets derived from 1080×1080 canvas pixel math ────────────────
+// Slide padding: 60px L/R → 960px usable width. Font sizes are Plus Jakarta Sans.
+const LIMITS = {
+  coverHeadline: 55,    // 92px font, 960px wide, 3-line max
+  category: 25,         // "AI · FUNDING" style label
+  headlinePrefix: 20,   // 1-3 words
+  headlineHighlight: 20,// 1-3 words
+  headlineSuffix: 50,   // rest of headline ending with period
+  headlineCombined: 80, // 52px font, 752px wide (next to 180px thumb), 3 lines
+  body: 280,            // 28px font, 960px wide, ~5 lines of flex space
+  kelsTake: 120,        // 26px font, 912px inner width, 2 lines
+  cardKey: 25,          // 22px font, ~273px inner card width
+  cardValue: 15,        // 32px font, same card — numbers/stats only
+  coverStatNumber: 12,  // 48px font, ~272px inner card width
+  coverStatLabel: 30,   // 26px font, ~272px, 1-2 lines
+} as const;
+
+type StoryShape = {
+  category: string;
+  source?: string;
+  url?: string;
+  headlinePrefix?: string;
+  headlineHighlight?: string;
+  headlineSuffix?: string;
+  headline?: string;
+  body?: string;
+  cards: Array<{ key: string; value: string }>;
+  kelsTake: string;
+  coverStat: { number: string; label: string };
+};
+
+type CarouselDataShape = {
+  coverHeadline: string;
+  date: string;
+  stories: StoryShape[];
+};
+
+function validateCarouselData(data: CarouselDataShape): string[] {
+  const v: string[] = [];
+
+  if ((data.coverHeadline?.length ?? 0) > LIMITS.coverHeadline)
+    v.push(`coverHeadline is ${data.coverHeadline.length} chars (max ${LIMITS.coverHeadline}): "${data.coverHeadline}"`);
+
+  for (let i = 0; i < (data.stories ?? []).length; i++) {
+    const s = data.stories[i];
+    const tag = `Story ${i + 1}`;
+
+    if ((s.category?.length ?? 0) > LIMITS.category)
+      v.push(`${tag} category is ${s.category.length} chars (max ${LIMITS.category}): "${s.category}"`);
+
+    if (s.headlinePrefix && s.headlinePrefix.length > LIMITS.headlinePrefix)
+      v.push(`${tag} headlinePrefix is ${s.headlinePrefix.length} chars (max ${LIMITS.headlinePrefix}): "${s.headlinePrefix}"`);
+
+    if (s.headlineHighlight && s.headlineHighlight.length > LIMITS.headlineHighlight)
+      v.push(`${tag} headlineHighlight is ${s.headlineHighlight.length} chars (max ${LIMITS.headlineHighlight}): "${s.headlineHighlight}"`);
+
+    if (s.headlineSuffix && s.headlineSuffix.length > LIMITS.headlineSuffix)
+      v.push(`${tag} headlineSuffix is ${s.headlineSuffix.length} chars (max ${LIMITS.headlineSuffix}): "${s.headlineSuffix}"`);
+
+    const combined = [s.headlinePrefix, s.headlineHighlight, s.headlineSuffix].filter(Boolean).join(" ");
+    if (combined.length > LIMITS.headlineCombined)
+      v.push(`${tag} combined headline is ${combined.length} chars (max ${LIMITS.headlineCombined}): "${combined}"`);
+
+    if (s.body && s.body.length > LIMITS.body)
+      v.push(`${tag} body is ${s.body.length} chars (max ${LIMITS.body})`);
+
+    if ((s.kelsTake?.length ?? 0) > LIMITS.kelsTake)
+      v.push(`${tag} kelsTake is ${s.kelsTake.length} chars (max ${LIMITS.kelsTake}): "${s.kelsTake}"`);
+
+    for (let j = 0; j < (s.cards ?? []).length; j++) {
+      const c = s.cards[j];
+      if ((c.key?.length ?? 0) > LIMITS.cardKey)
+        v.push(`${tag} card[${j}].key is ${c.key.length} chars (max ${LIMITS.cardKey}): "${c.key}"`);
+      if ((c.value?.length ?? 0) > LIMITS.cardValue)
+        v.push(`${tag} card[${j}].value is ${c.value.length} chars (max ${LIMITS.cardValue}): "${c.value}"`);
+    }
+
+    if ((s.coverStat?.number?.length ?? 0) > LIMITS.coverStatNumber)
+      v.push(`${tag} coverStat.number is ${s.coverStat.number.length} chars (max ${LIMITS.coverStatNumber}): "${s.coverStat.number}"`);
+
+    if ((s.coverStat?.label?.length ?? 0) > LIMITS.coverStatLabel)
+      v.push(`${tag} coverStat.label is ${s.coverStat.label.length} chars (max ${LIMITS.coverStatLabel}): "${s.coverStat.label}"`);
+  }
+
+  return v;
+}
+
+function truncateAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return lastSpace > 0 ? cut.slice(0, lastSpace) : cut;
+}
+
+function enforceHardLimits(data: CarouselDataShape): CarouselDataShape {
+  return {
+    ...data,
+    coverHeadline: truncateAtWord(data.coverHeadline ?? "", LIMITS.coverHeadline),
+    stories: (data.stories ?? []).map((s) => ({
+      ...s,
+      headlinePrefix: s.headlinePrefix ? truncateAtWord(s.headlinePrefix, LIMITS.headlinePrefix) : s.headlinePrefix,
+      headlineHighlight: s.headlineHighlight ? truncateAtWord(s.headlineHighlight, LIMITS.headlineHighlight) : s.headlineHighlight,
+      headlineSuffix: s.headlineSuffix ? truncateAtWord(s.headlineSuffix, LIMITS.headlineSuffix) : s.headlineSuffix,
+      body: s.body ? truncateAtWord(s.body, LIMITS.body) : s.body,
+      kelsTake: truncateAtWord(s.kelsTake ?? "", LIMITS.kelsTake),
+      cards: (s.cards ?? []).map((c) => ({
+        key: truncateAtWord(c.key ?? "", LIMITS.cardKey),
+        value: truncateAtWord(c.value ?? "", LIMITS.cardValue),
+      })),
+      coverStat: {
+        number: truncateAtWord(s.coverStat?.number ?? "", LIMITS.coverStatNumber),
+        label: truncateAtWord(s.coverStat?.label ?? "", LIMITS.coverStatLabel),
+      },
+    })),
+  };
+}
+
+async function callClaude(messages: Anthropic.MessageParam[]): Promise<string> {
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2048,
+    messages,
+  });
+  return (message.content[0] as { type: string; text: string }).text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+}
+
 export async function POST(req: NextRequest) {
   const { episode_id, selected_indices, format } = await req.json() as {
     episode_id: string;
@@ -85,24 +216,39 @@ Use the actual source name and URL for each story.
 IMPORTANT: Card values must be very short — numbers, percentages, or 2-3 word stats only (e.g. "$33B", "−40%", "10 yrs"). Never sentences.
 Body is the main readable content on each slide — 2-3 informative sentences that a PM would find valuable.`;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2048,
-    messages: [{ role: "user", content: prompt }],
-  });
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
+  const raw = await callClaude(messages);
 
-  const raw = (message.content[0] as { type: string; text: string }).text
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
-
-  let carouselData: object;
+  let carouselData: CarouselDataShape;
   try {
-    carouselData = JSON.parse(raw);
+    carouselData = JSON.parse(raw) as CarouselDataShape;
   } catch {
     return NextResponse.json({ error: "Failed to parse carousel data from Claude" }, { status: 500 });
+  }
+
+  // Validate field lengths against canvas budgets — retry once with specific violations
+  let violations = validateCarouselData(carouselData);
+  if (violations.length > 0) {
+    const retryMessages: Anthropic.MessageParam[] = [
+      ...messages,
+      { role: "assistant", content: raw },
+      {
+        role: "user",
+        content: `${violations.length} field(s) exceed the character limits for the slide canvas. Please regenerate the entire JSON with tighter copy:\n\n${violations.map((v) => `• ${v}`).join("\n")}\n\nReturn JSON only, no markdown.`,
+      },
+    ];
+    const retryRaw = await callClaude(retryMessages);
+    try {
+      carouselData = JSON.parse(retryRaw) as CarouselDataShape;
+      violations = validateCarouselData(carouselData);
+    } catch {
+      // Retry parse failed — fall through to hard limits on original
+    }
+  }
+
+  // Hard-limit fallback: word-boundary truncation if retry still has violations
+  if (violations.length > 0) {
+    carouselData = enforceHardLimits(carouselData);
   }
 
   const { error: updateError } = await supabase

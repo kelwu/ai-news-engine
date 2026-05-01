@@ -148,8 +148,7 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
           <h2 style={{
             flex: 1, color: S_TEXT, fontSize: 52, fontWeight: 800, lineHeight: 1.04,
             letterSpacing: "-0.03em", margin: 0, paddingBottom: 4, fontFamily,
-            display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
-          } as React.CSSProperties}>
+          }}>
             {story.headlinePrefix && <>{story.headlinePrefix} </>}
             {story.headlineHighlight && <span style={{ color: S_BLUE }}>{story.headlineHighlight}</span>}
             {story.headlineSuffix && <> {story.headlineSuffix}</>}
@@ -163,7 +162,7 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
         </div>
 
         {/* ZONE 3: Body — flex:1, takes all remaining space */}
-        <div style={{ flex: 1, overflow: "hidden", marginBottom: 20 }}>
+        <div style={{ flex: 1, marginBottom: 20 }}>
           {story.body && (
             <p style={{ color: S_MUTED, fontSize: 28, fontWeight: 400, lineHeight: 1.65, margin: 0, fontFamily }}>
               {story.body}
