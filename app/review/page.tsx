@@ -1,6 +1,8 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
 import ApproveButton from "../components/ApproveButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function ReviewPage() {
   const supabase = getSupabaseServer();
 

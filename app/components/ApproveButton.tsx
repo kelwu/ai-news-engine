@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 type Format = "reel" | "carousel" | "both";
 type PublishMode = "now" | "schedule";
@@ -38,7 +37,6 @@ export default function ApproveButton({
   const [mode, setMode] = useState<PublishMode>("now");
   const [scheduleTime, setScheduleTime] = useState("");
   const [currentSchedule, setCurrentSchedule] = useState<string | null>(scheduledAt);
-  const router = useRouter();
 
   const assetsExist =
     status === "rendered" ||
@@ -74,7 +72,7 @@ export default function ApproveButton({
       }
 
       setLog("");
-      router.refresh();
+      window.location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Render failed — check console");
     } finally {
@@ -95,7 +93,7 @@ export default function ApproveButton({
     if (!res.ok) {
       setError(data.error ?? "Publish failed");
     } else {
-      router.refresh();
+      window.location.reload();
     }
     setLog("");
     setRunning(false);
@@ -121,7 +119,7 @@ export default function ApproveButton({
       setError(data.error ?? "Schedule failed");
     } else {
       setCurrentSchedule(new Date(scheduleTime).toISOString());
-      router.refresh();
+      window.location.reload();
     }
     setLog("");
     setRunning(false);
@@ -141,7 +139,7 @@ export default function ApproveButton({
     } else {
       setCurrentSchedule(null);
       setScheduleTime("");
-      router.refresh();
+      window.location.reload();
     }
     setRunning(false);
   }
