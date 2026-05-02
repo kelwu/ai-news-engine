@@ -52,7 +52,7 @@ function DataCardLight({ label, value }: { label: string; value: string }) {
       display: "flex", flexDirection: "column", gap: 8,
       border: "1px solid rgba(13,27,42,0.08)", boxShadow: "0 2px 12px rgba(13,27,42,0.06)",
     }}>
-      <span style={{ color: S_MUTED, fontSize: 22, fontWeight: 500, lineHeight: 1.3, fontFamily }}>{label}</span>
+      <span style={{ color: S_MUTED, fontSize: 26, fontWeight: 500, lineHeight: 1.3, fontFamily }}>{label}</span>
       <span style={{ color: S_BLUE, fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontFamily }}>{value}</span>
     </div>
   );
@@ -61,8 +61,8 @@ function DataCardLight({ label, value }: { label: string; value: string }) {
 function KelsTakeLight({ text }: { text: string }) {
   return (
     <div style={{ background: S_TEXT, borderRadius: 14, padding: "20px 24px" }}>
-      <div style={{ color: S_BLUE, fontSize: 18, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10, fontFamily }}>Signal</div>
-      <p style={{ color: "#fff", fontSize: 26, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily }}>{text}</p>
+      <div style={{ color: S_BLUE, fontSize: 20, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10, fontFamily }}>Signal</div>
+      <p style={{ color: "#fff", fontSize: 30, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily }}>{text}</p>
     </div>
   );
 }
@@ -164,7 +164,7 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
         {/* ZONE 3: Body — flex:1, takes all remaining space */}
         <div style={{ flex: 1, marginBottom: 20 }}>
           {story.body && (
-            <p style={{ color: S_TEXT, fontSize: 32, fontWeight: 400, lineHeight: 1.65, margin: 0, fontFamily }}>
+            <p style={{ color: S_TEXT, fontSize: 36, fontWeight: 400, lineHeight: 1.65, margin: 0, fontFamily }}>
               {story.body}
             </p>
           )}
