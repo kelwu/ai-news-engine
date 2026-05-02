@@ -52,32 +52,34 @@ export default function ApproveButton({
   async function renderPreview() {
     setRunning(true);
     setError("");
-
-    if (format === "reel" || format === "both") {
-      setLog("Rendering reel…");
-      const res = await fetch("/api/render", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Reel render failed");
-        setRunning(false);
-        return;
+    try {
+      if (format === "reel" || format === "both") {
+        setLog("Rendering reel…");
+        const res = await fetch("/api/render", { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(data.error ?? `Reel render failed (${res.status})`);
+          return;
+        }
       }
-    }
 
-    if (format === "carousel" || format === "both") {
-      setLog("Rendering carousel…");
-      const res = await fetch("/api/render-carousel", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Carousel render failed");
-        setRunning(false);
-        return;
+      if (format === "carousel" || format === "both") {
+        setLog("Rendering carousel…");
+        const res = await fetch("/api/render-carousel", { method: "POST" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(data.error ?? `Carousel render failed (${res.status})`);
+          return;
+        }
       }
-    }
 
-    setLog("");
-    setRunning(false);
-    router.refresh();
+      setLog("");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Render failed — check console");
+    } finally {
+      setRunning(false);
+    }
   }
 
   async function publish() {

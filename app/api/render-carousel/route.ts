@@ -66,9 +66,15 @@ export async function POST() {
     images,
   };
 
-  const carouselUrls = await Promise.all(
-    [0, 1, 2, 3, 4].map((i) => renderAndUpload(i, sharedProps, episode.id))
-  );
+  let carouselUrls: string[];
+  try {
+    carouselUrls = await Promise.all(
+      [0, 1, 2, 3, 4].map((i) => renderAndUpload(i, sharedProps, episode.id))
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Render failed: ${msg}` }, { status: 500 });
+  }
 
   await supabase
     .from("episodes")
