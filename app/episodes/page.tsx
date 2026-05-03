@@ -1,4 +1,7 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
+import MetricsRefreshButton from "../components/MetricsRefreshButton";
+
+export const dynamic = "force-dynamic";
 
 const STATUS_COLORS: Record<string, string> = {
   published: "bg-emerald-500/20 text-emerald-400",
@@ -16,11 +19,16 @@ function badge(status: string) {
   );
 }
 
+function MetricCell({ value }: { value: number | undefined }) {
+  if (value === undefined) return <span className="text-zinc-600">—</span>;
+  return <span className="text-zinc-300">{value.toLocaleString()}</span>;
+}
+
 export default async function EpisodesPage() {
   const supabase = getSupabaseServer();
   const { data: episodes } = await supabase
     .from("episodes")
-    .select("id, scheduled_for, status, selected_story, video_url, created_at")
+    .select("id, scheduled_for, status, selected_story, video_url, created_at, instagram_reel_id, instagram_carousel_id, ig_metrics, ig_metrics_at")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -32,18 +40,29 @@ export default async function EpisodesPage() {
         <p className="text-zinc-500">No episodes yet.</p>
       ) : (
         <div className="rounded-xl border border-zinc-800 overflow-hidden overflow-x-auto">
-          <table className="w-full text-sm min-w-[540px]">
+          <table className="w-full text-sm min-w-[800px]">
             <thead className="bg-zinc-900 text-zinc-500 text-xs uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3 text-left">Date</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-left">Headline</th>
-                <th className="px-4 py-3 text-left">Video</th>
+                <th className="px-4 py-3 text-right">Reach</th>
+                <th className="px-4 py-3 text-right">Impressions</th>
+                <th className="px-4 py-3 text-right">Saves</th>
+                <th className="px-4 py-3 text-right">Plays</th>
+                <th className="px-4 py-3 text-left">Metrics</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
               {episodes.map((ep) => {
                 const story = ep.selected_story as { headline?: string } | null;
+                const metrics = ep.ig_metrics as Record<string, Record<string, number>> | null;
+                const m = metrics?.reel ?? metrics?.carousel;
+                const hasPostId = !!(ep.instagram_reel_id || ep.instagram_carousel_id);
+                const lastFetched = ep.ig_metrics_at
+                  ? new Date(ep.ig_metrics_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                  : null;
+
                 return (
                   <tr key={ep.id} className="bg-zinc-950 hover:bg-zinc-900 transition-colors">
                     <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{ep.scheduled_for}</td>
@@ -51,13 +70,21 @@ export default async function EpisodesPage() {
                     <td className="px-4 py-3 text-zinc-300 max-w-xs truncate">
                       {story?.headline ?? "—"}
                     </td>
+                    <td className="px-4 py-3 text-right"><MetricCell value={m?.reach} /></td>
+                    <td className="px-4 py-3 text-right"><MetricCell value={m?.impressions} /></td>
+                    <td className="px-4 py-3 text-right"><MetricCell value={m?.saved} /></td>
+                    <td className="px-4 py-3 text-right"><MetricCell value={m?.plays} /></td>
                     <td className="px-4 py-3">
-                      {ep.video_url ? (
-                        <a href={ep.video_url} target="_blank" rel="noopener noreferrer"
-                          className="text-blue-400 hover:text-blue-300 text-xs">
-                          Watch →
-                        </a>
-                      ) : "—"}
+                      {hasPostId ? (
+                        <div className="flex items-center gap-2">
+                          <MetricsRefreshButton episodeId={ep.id} />
+                          {lastFetched && (
+                            <span className="text-zinc-600 text-xs">{lastFetched}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-zinc-700 text-xs">—</span>
+                      )}
                     </td>
                   </tr>
                 );

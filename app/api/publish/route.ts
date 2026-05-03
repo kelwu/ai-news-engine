@@ -119,7 +119,13 @@ export async function POST(req: NextRequest) {
 
     await supabase
       .from("episodes")
-      .update({ status: "published", error: null })
+      .update({
+        status: "published",
+        error: null,
+        ...(result.reel_id ? { instagram_reel_id: result.reel_id } : {}),
+        ...(result.carousel_id ? { instagram_carousel_id: result.carousel_id } : {}),
+        posted_at: new Date().toISOString(),
+      })
       .eq("id", episode_id);
 
     return NextResponse.json({ success: true, ...result });
