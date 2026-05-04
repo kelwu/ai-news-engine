@@ -18,6 +18,7 @@ export default function ApproveButton({
   hasCarousel,
   scheduledAt,
   scheduledFormat,
+  savedClosingCaption,
 }: {
   episodeId: string;
   status: string;
@@ -27,13 +28,15 @@ export default function ApproveButton({
   hasCarousel: boolean;
   scheduledAt: string | null;
   scheduledFormat: string | null;
+  savedClosingCaption: string | null;
 }) {
   const defaultFormat = (recommendedFormat as Format) ?? "reel";
   const [format, setFormat] = useState<Format>((scheduledFormat as Format) ?? defaultFormat);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState("");
   const [error, setError] = useState("");
-  const [closingCaption, setClosingCaption] = useState(DEFAULT_CLOSING);
+  const [closingCaption, setClosingCaption] = useState(savedClosingCaption ?? DEFAULT_CLOSING);
+  const [captionSaved, setCaptionSaved] = useState(false);
   const [mode, setMode] = useState<PublishMode>("now");
   const [scheduleTime, setScheduleTime] = useState("");
   const [currentSchedule, setCurrentSchedule] = useState<string | null>(scheduledAt);
@@ -144,6 +147,23 @@ export default function ApproveButton({
     setRunning(false);
   }
 
+  async function saveCaption() {
+    setRunning(true);
+    const res = await fetch("/api/save-closing-caption", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ episode_id: episodeId, closing_caption: closingCaption }),
+    });
+    if (res.ok) {
+      setCaptionSaved(true);
+      setTimeout(() => setCaptionSaved(false), 2000);
+    } else {
+      const data = await res.json();
+      setError(data.error ?? "Save failed");
+    }
+    setRunning(false);
+  }
+
   if (isPublished) {
     return <p className="text-emerald-400 font-semibold text-sm">Published to Instagram ✓</p>;
   }
@@ -194,12 +214,21 @@ export default function ApproveButton({
         <div className="space-y-4">
           {/* Closing caption */}
           <div className="space-y-1.5">
-            <label className="text-xs text-zinc-500 uppercase tracking-wider block">
-              Closing caption (appended to every post)
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-zinc-500 uppercase tracking-wider">
+                Closing caption (appended to every post)
+              </label>
+              <button
+                onClick={saveCaption}
+                disabled={running}
+                className="text-xs text-zinc-400 hover:text-white disabled:opacity-50 transition-colors"
+              >
+                {captionSaved ? "✓ Saved" : "Save"}
+              </button>
+            </div>
             <textarea
               value={closingCaption}
-              onChange={(e) => setClosingCaption(e.target.value)}
+              onChange={(e) => { setClosingCaption(e.target.value); setCaptionSaved(false); }}
               rows={5}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 resize-none focus:outline-none focus:border-zinc-500 font-mono"
             />

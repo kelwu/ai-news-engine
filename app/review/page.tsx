@@ -181,6 +181,7 @@ export default async function ReviewPage() {
           hasCarousel={hasCarousel}
           scheduledAt={(episode as { scheduled_publish_at?: string }).scheduled_publish_at ?? null}
           scheduledFormat={(episode as { scheduled_format?: string }).scheduled_format ?? null}
+          savedClosingCaption={(episode as { closing_caption?: string }).closing_caption ?? null}
         />
       </div>
     </div>
