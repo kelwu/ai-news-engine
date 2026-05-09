@@ -89,12 +89,13 @@ export async function POST(req: NextRequest) {
 
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
-    .select("id, video_url, carousel_urls, caption, caption_carousel, hashtags")
+    .select("id, status, video_url, carousel_urls, caption, caption_carousel, hashtags")
     .eq("id", episode_id)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
   if (!episode) return NextResponse.json({ error: "Episode not found" }, { status: 404 });
+  if (episode.status === "published") return NextResponse.json({ error: "Already published" }, { status: 409 });
 
   const reelCaption = closing_caption
     ? `${episode.caption}\n\n${closing_caption}`

@@ -23,6 +23,16 @@ export default async function ReviewPage() {
     );
   }
 
+  let savedClosingCaption = (episode as { closing_caption?: string }).closing_caption ?? null;
+  if (!savedClosingCaption) {
+    const { data: globalSetting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "closing_caption")
+      .maybeSingle();
+    savedClosingCaption = globalSetting?.value ?? null;
+  }
+
   const story = episode.selected_story as { headline?: string; source?: string; url?: string } | null;
   const carouselUrls: string[] = episode.carousel_urls ?? [];
   const hasVideo = !!episode.video_url;
@@ -181,7 +191,7 @@ export default async function ReviewPage() {
           hasCarousel={hasCarousel}
           scheduledAt={(episode as { scheduled_publish_at?: string }).scheduled_publish_at ?? null}
           scheduledFormat={(episode as { scheduled_format?: string }).scheduled_format ?? null}
-          savedClosingCaption={(episode as { closing_caption?: string }).closing_caption ?? null}
+          savedClosingCaption={savedClosingCaption}
         />
       </div>
     </div>

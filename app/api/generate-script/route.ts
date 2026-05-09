@@ -31,13 +31,15 @@ Carousel candidates: suggest 3-5 stories from the list (by index) that would wor
 Caption writing rules (Instagram best practices — applies to both caption fields):
 - Line 1 is the hook — must be under 125 characters (the "more" cutoff). Make it a bold claim, surprising stat, or question that demands a tap.
 - Use blank lines between paragraphs for readability.
+- After the hook, write 3-5 sentences of body content. Explain what happened, why it matters for PMs/builders, and one forward-looking takeaway. Be specific — name the company, product, or number. Do not just repeat the hook.
 - End with one engagement question (e.g. "Which story surprised you most? Drop it below 👇").
 - Hashtags go in the hashtags field, not in either caption field. 5–8 tightly relevant tags.
 - Never use em-dashes or asterisks. Write in second person, conversational tone.
+- Target 150-250 words total per caption. Short captions get buried — substance earns saves and shares.
 
-caption_reel (the "caption" field): Written for a video post. Hook teases what the viewer is about to watch. CTA is "Watch till the end" or "Sound on 🔊". Assumes the viewer is watching a 45-second reel.
+caption_reel (the "caption" field): Written for a video post. Hook teases what the viewer is about to watch. After the hook, summarize what happened and why it matters. CTA is "Watch till the end 👇" or "Sound on 🔊". Assumes the viewer is watching a 45-second reel.
 
-caption_carousel (the "caption_carousel" field): Written for a swipeable carousel. Hook teases the stories inside. Include "Swipe → for the full breakdown" after the hook. Add "Save this for later 🔖" as a second CTA. Tone is more editorial and educational — you're curating a briefing, not narrating a video.`;
+caption_carousel (the "caption_carousel" field): Written for a swipeable carousel. Hook teases the stories inside. Include "Swipe → for the full breakdown" after the hook. After that, describe what's inside — 2-3 sentences on the themes covered. Add "Save this for later 🔖" as a second CTA. Tone is more editorial and educational — you're curating a briefing, not narrating a video.`;
 
 const FETCH_ARTICLE_TOOL: Anthropic.Tool = {
   name: "fetch_article",

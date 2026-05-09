@@ -1,4 +1,17 @@
-export default function SettingsPage() {
+import { getSupabaseServer } from "@/lib/supabase-server";
+import ClosingCaptionSetting from "../components/ClosingCaptionSetting";
+
+export const dynamic = "force-dynamic";
+
+export default async function SettingsPage() {
+  const supabase = getSupabaseServer();
+
+  const { data: closingCaptionRow } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "closing_caption")
+    .maybeSingle();
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-white">Settings</h1>
@@ -28,6 +41,8 @@ export default function SettingsPage() {
             {process.env.INSTAGRAM_ACCESS_TOKEN ? "Connected" : "Not connected — add credentials to .env.local"}
           </p>
         </div>
+
+        <ClosingCaptionSetting initial={closingCaptionRow?.value ?? null} />
       </div>
     </div>
   );
