@@ -154,7 +154,7 @@ export async function POST() {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       tools: [FETCH_ARTICLE_TOOL, FINALIZE_OUTPUT_TOOL],
       messages,
     });

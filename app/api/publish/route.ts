@@ -29,6 +29,22 @@ async function pollUntilReady(creationId: string, maxAttempts = 30): Promise<voi
   throw new Error("Instagram media processing timed out");
 }
 
+async function publishWithRetry(creationId: string, maxAttempts = 5): Promise<string> {
+  let lastError: Error | null = null;
+  for (let i = 0; i < maxAttempts; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 3000 * i));
+    try {
+      const { id } = await igPost(`${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
+      return id;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      // Only retry on "media ID is not available" — other errors are final
+      if (!lastError.message.toLowerCase().includes("not available")) throw lastError;
+    }
+  }
+  throw lastError!;
+}
+
 async function publishReel(episode: {
   video_url: string;
   caption: string;
@@ -43,12 +59,7 @@ async function publishReel(episode: {
   });
 
   await pollUntilReady(creationId);
-
-  const { id: postId } = await igPost(`${ACCOUNT_ID}/media_publish`, {
-    creation_id: creationId,
-  });
-
-  return postId;
+  return await publishWithRetry(creationId);
 }
 
 async function publishCarousel(episode: {
@@ -76,12 +87,7 @@ async function publishCarousel(episode: {
     caption,
   });
 
-  // Publish
-  const { id: postId } = await igPost(`${ACCOUNT_ID}/media_publish`, {
-    creation_id: creationId,
-  });
-
-  return postId;
+  return await publishWithRetry(creationId);
 }
 
 export async function POST(req: NextRequest) {
