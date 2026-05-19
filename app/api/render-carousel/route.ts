@@ -35,7 +35,7 @@ async function renderAndUpload(slideIndex: number, inputProps: object, episodeId
 }
 
 export async function POST() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
 
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")

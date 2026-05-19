@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 
 export async function POST(req: Request) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
 
   let skip = false;
   try {

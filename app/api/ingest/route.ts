@@ -45,7 +45,7 @@ async function fetchTLDR(): Promise<Story[]> {
 }
 
 export async function POST(req: Request) {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" }); // YYYY-MM-DD in PT
 
   let force = false;
   try {
