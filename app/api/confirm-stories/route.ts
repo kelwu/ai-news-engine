@@ -44,6 +44,59 @@ type CarouselDataShape = {
 };
 
 
+const GENERATE_CAROUSEL_TOOL: Anthropic.Tool = {
+  name: "generate_carousel_data",
+  description: "Output the carousel slide data for the selected stories.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      coverHeadline: { type: "string" },
+      date: { type: "string" },
+      stories: {
+        type: "array",
+        items: {
+          type: "object" as const,
+          properties: {
+            category: { type: "string" },
+            source: { type: "string" },
+            url: { type: "string" },
+            headlinePrefix: { type: "string" },
+            headlineHighlight: { type: "string" },
+            headlineSuffix: { type: "string" },
+            body: { type: "string" },
+            cards: {
+              type: "array",
+              items: {
+                type: "object" as const,
+                properties: {
+                  key: { type: "string" },
+                  value: { type: "string" },
+                },
+                required: ["key", "value"],
+                additionalProperties: false,
+              },
+            },
+            kelsTake: { type: "string" },
+            coverStat: {
+              type: "object" as const,
+              properties: {
+                number: { type: "string" },
+                label: { type: "string" },
+              },
+              required: ["number", "label"],
+              additionalProperties: false,
+            },
+          },
+          required: ["category", "source", "url", "headlinePrefix", "headlineHighlight", "headlineSuffix", "body", "cards", "kelsTake", "coverStat"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["coverHeadline", "date", "stories"],
+    additionalProperties: false,
+  },
+};
+
 function truncateAtWord(text: string, max: number): string {
   if (text.length <= max) return text;
   const cut = text.slice(0, max);
@@ -74,19 +127,6 @@ function enforceHardLimits(data: CarouselDataShape): CarouselDataShape {
   };
 }
 
-async function callClaude(prompt: string): Promise<string> {
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2048,
-    messages: [{ role: "user", content: prompt }],
-  });
-  return (message.content[0] as { type: string; text: string }).text
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
-}
 
 export async function POST(req: NextRequest) {
   const { episode_id, selected_indices, format } = await req.json() as {
@@ -137,7 +177,7 @@ Today is ${dateStr}. The user has selected these 3 stories for today's Tech Brie
 
 ${selectedStories.map((s, i) => `Story ${i + 1}: ${s.title}\nSource: ${s.source}\nURL: ${s.url}\nSummary: ${s.summary}`).join("\n\n")}
 
-Generate carousel_data for these exactly 3 stories. Return JSON only, no markdown:
+Generate carousel_data for these exactly 3 stories by calling generate_carousel_data with:
 
 {
   "coverHeadline": "6-10 word punchy headline capturing today's overall theme",
@@ -167,14 +207,19 @@ Use the actual source name and URL for each story.
 IMPORTANT: Card values must be very short — numbers, percentages, or 2-3 word stats only (e.g. "$33B", "−40%", "10 yrs"). Never sentences.
 Body is the main readable content on each slide — 2-3 informative sentences that a PM would find valuable.`;
 
-  const raw = await callClaude(prompt);
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4096,
+    messages: [{ role: "user", content: prompt }],
+    tools: [GENERATE_CAROUSEL_TOOL],
+    tool_choice: { type: "tool", name: "generate_carousel_data" },
+  });
 
-  let carouselData: CarouselDataShape;
-  try {
-    carouselData = JSON.parse(raw) as CarouselDataShape;
-  } catch {
-    return NextResponse.json({ error: "Failed to parse carousel data from Claude" }, { status: 500 });
+  const toolBlock = message.content.find(b => b.type === "tool_use");
+  if (!toolBlock || toolBlock.type !== "tool_use") {
+    return NextResponse.json({ error: "Failed to generate carousel data" }, { status: 500 });
   }
+  let carouselData = toolBlock.input as CarouselDataShape;
 
   // Enforce hard character limits — word-boundary truncation, no-op when within budget
   carouselData = enforceHardLimits(carouselData);

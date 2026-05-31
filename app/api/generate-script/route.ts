@@ -9,7 +9,7 @@ const SYSTEM_PROMPT = `You are a research agent and AI news editor for @productb
 Your job each day:
 1. Review today's AI news stories (headlines + summaries provided)
 2. Identify the 2-3 most promising stories for a PM/builder audience
-3. Use fetch_article to read the full content of each candidate — always fetch at least 2 stories before deciding
+3. Use web_fetch to read the full content of each candidate — always fetch at least 2 stories before deciding
 4. Select the single best story for the reel based on: depth of content, relevance to PMs/builders, recency
 5. Call finalize_output with all your results
 
@@ -32,6 +32,7 @@ Caption writing rules (Instagram best practices — applies to both caption fiel
 - Line 1 is the hook — must be under 125 characters (the "more" cutoff). Make it a bold claim, surprising stat, or question that demands a tap.
 - Use blank lines between paragraphs for readability.
 - After the hook, write 3-5 sentences of body content. Explain what happened, why it matters for PMs/builders, and one forward-looking takeaway. Be specific — name the company, product, or number. Do not just repeat the hook.
+- After the body content, add "Source: [source name]" on its own line.
 - End with one engagement question (e.g. "Which story surprised you most? Drop it below 👇").
 - Hashtags go in the hashtags field, not in either caption field. 5–8 tightly relevant tags.
 - Never use em-dashes or asterisks. Write in second person, conversational tone.
@@ -41,17 +42,7 @@ caption_reel (the "caption" field): Written for a video post. Hook teases what t
 
 caption_carousel (the "caption_carousel" field): Written for a swipeable carousel. Hook teases the stories inside. Include "Swipe → for the full breakdown" after the hook. After that, describe what's inside — 2-3 sentences on the themes covered. Add "Save this for later 🔖" as a second CTA. Tone is more editorial and educational — you're curating a briefing, not narrating a video.`;
 
-const FETCH_ARTICLE_TOOL: Anthropic.Tool = {
-  name: "fetch_article",
-  description: "Fetch and read the full text of a news article before deciding which story to cover. Use on your top 2-3 candidates.",
-  input_schema: {
-    type: "object" as const,
-    properties: {
-      url: { type: "string", description: "Article URL to fetch" },
-    },
-    required: ["url"],
-  },
-};
+const WEB_FETCH_TOOL = { type: "web_fetch_20260209" as const, name: "web_fetch" };
 
 const FINALIZE_OUTPUT_TOOL: Anthropic.Tool = {
   name: "finalize_output",
@@ -91,26 +82,6 @@ const FINALIZE_OUTPUT_TOOL: Anthropic.Tool = {
   },
 };
 
-async function fetchArticleContent(url: string): Promise<string> {
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; AINewsBot/1.0)" },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return `[Could not fetch article: HTTP ${res.status}]`;
-    const html = await res.text();
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 4000);
-    return text || "[Article content empty]";
-  } catch {
-    return "[Could not fetch article: request failed or timed out]";
-  }
-}
 
 type FinalOutput = {
   selected_story: { headline: string; source: string; url: string };
@@ -153,38 +124,26 @@ export async function POST() {
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 4096,
+      max_tokens: 8192,
+      thinking: { type: "adaptive" },
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-      tools: [FETCH_ARTICLE_TOOL, FINALIZE_OUTPUT_TOOL],
+      tools: [WEB_FETCH_TOOL, FINALIZE_OUTPUT_TOOL],
       messages,
     });
 
     messages.push({ role: "assistant", content: response.content });
 
     if (response.stop_reason === "end_turn") break;
-
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    if (response.stop_reason === "pause_turn") continue;
 
     for (const block of response.content) {
-      if (block.type !== "tool_use") continue;
-
-      if (block.name === "finalize_output") {
+      if (block.type === "tool_use" && block.name === "finalize_output") {
         result = block.input as FinalOutput;
         break;
-      }
-
-      if (block.name === "fetch_article") {
-        const { url } = block.input as { url: string };
-        const content = await fetchArticleContent(url);
-        toolResults.push({ type: "tool_result", tool_use_id: block.id, content });
       }
     }
 
     if (result) break;
-
-    if (toolResults.length > 0) {
-      messages.push({ role: "user", content: toolResults });
-    }
   }
 
   if (!result) {
