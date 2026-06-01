@@ -42,7 +42,7 @@ caption_reel (the "caption" field): Written for a video post. Hook teases what t
 
 caption_carousel (the "caption_carousel" field): Written for a swipeable carousel. Hook teases the stories inside. Include "Swipe → for the full breakdown" after the hook. After that, describe what's inside — 2-3 sentences on the themes covered. Add "Save this for later 🔖" as a second CTA. Tone is more editorial and educational — you're curating a briefing, not narrating a video.`;
 
-const WEB_FETCH_TOOL = { type: "web_fetch_20260209" as const, name: "web_fetch" };
+const WEB_FETCH_TOOL = { type: "web_fetch_20260209" as const, name: "web_fetch" as const };
 
 const FINALIZE_OUTPUT_TOOL: Anthropic.Tool = {
   name: "finalize_output",
