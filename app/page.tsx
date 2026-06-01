@@ -32,7 +32,7 @@ function StatusStep({ step, current, error }: { step: string; current: string; e
 
 export default async function Home() {
   const supabase = getSupabaseServer();
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
 
   const { data: episode } = await supabase
     .from("episodes")
