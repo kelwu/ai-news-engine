@@ -32,12 +32,9 @@ function StatusStep({ step, current, error }: { step: string; current: string; e
 
 export default async function Home() {
   const supabase = getSupabaseServer();
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-
   const { data: episode } = await supabase
     .from("episodes")
     .select("*")
-    .eq("scheduled_for", today)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -54,7 +51,7 @@ export default async function Home() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Today&apos;s Episode</h1>
-          <p className="text-zinc-500 text-sm mt-1">{today}</p>
+          <p className="text-zinc-500 text-sm mt-1">{episode?.scheduled_for ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" })}</p>
         </div>
         <RunPipeline forceNew />
       </div>

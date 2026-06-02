@@ -93,19 +93,16 @@ async function generateAndUpload(prompt: string, episodeId: string, index: numbe
 }
 
 export async function POST() {
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
     .select("id, selected_story")
-    .eq("scheduled_for", today)
     .eq("status", "scripted")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
-  if (!episode) return NextResponse.json({ error: "No scripted episode found for today" }, { status: 404 });
+  if (!episode) return NextResponse.json({ error: "No scripted episode found" }, { status: 404 });
 
   const story = episode.selected_story as { headline: string; url: string };
 

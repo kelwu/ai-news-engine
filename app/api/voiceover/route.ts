@@ -4,8 +4,6 @@ import { supabase } from "@/lib/supabase";
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 
 export async function POST(req: Request) {
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-
   let skip = false;
   try {
     const body = await req.json();
@@ -15,7 +13,6 @@ export async function POST(req: Request) {
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
     .select("id, script, recommended_format")
-    .eq("scheduled_for", today)
     .eq("status", "imaged")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -25,7 +22,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 });
   }
   if (!episode) {
-    return NextResponse.json({ error: "No imaged episode found for today" }, { status: 404 });
+    return NextResponse.json({ error: "No imaged episode found" }, { status: 404 });
   }
 
   if (skip || episode.recommended_format === "carousel") {

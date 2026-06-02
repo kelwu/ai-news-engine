@@ -96,20 +96,18 @@ type FinalOutput = {
 
 export async function POST() {
   const pt = { timeZone: "America/Los_Angeles" } as const;
-  const today = new Date().toLocaleDateString("en-CA", pt); // YYYY-MM-DD in PT
   const dateStr = new Date().toLocaleDateString("en-US", { ...pt, month: "long", day: "numeric", year: "numeric" });
 
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
     .select("id, raw_stories")
-    .eq("scheduled_for", today)
     .eq("status", "ingested")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
-  if (!episode) return NextResponse.json({ error: "No ingested episode found for today" }, { status: 404 });
+  if (!episode) return NextResponse.json({ error: "No ingested episode found" }, { status: 404 });
 
   const messages: Anthropic.MessageParam[] = [
     {

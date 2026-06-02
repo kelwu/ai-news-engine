@@ -26,19 +26,16 @@ async function waitForRender(renderId: string, bucketName: string): Promise<stri
 }
 
 export async function POST() {
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
     .select("id, selected_story, script, image_url, image_urls, voiceover_url, caption, hashtags")
-    .eq("scheduled_for", today)
     .in("status", ["voiced", "rendering"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
-  if (!episode) return NextResponse.json({ error: "No voiced episode found for today" }, { status: 404 });
+  if (!episode) return NextResponse.json({ error: "No voiced episode found" }, { status: 404 });
 
   const story = episode.selected_story as { headline: string; source: string };
 

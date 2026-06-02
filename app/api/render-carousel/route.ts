@@ -35,19 +35,16 @@ async function renderAndUpload(slideIndex: number, inputProps: object, episodeId
 }
 
 export async function POST() {
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
-
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
     .select("id, carousel_data, image_urls, image_url")
-    .eq("scheduled_for", today)
     .in("status", ["voiced", "rendered"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
-  if (!episode) return NextResponse.json({ error: "No voiced/rendered episode found for today" }, { status: 404 });
+  if (!episode) return NextResponse.json({ error: "No voiced/rendered episode found" }, { status: 404 });
   if (!episode.carousel_data) return NextResponse.json({ error: "No carousel_data — re-run the script step" }, { status: 400 });
 
   const imageUrls: string[] = episode.image_urls ?? [episode.image_url, episode.image_url, episode.image_url];
