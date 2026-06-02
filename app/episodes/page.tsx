@@ -1,4 +1,5 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
+import Link from "next/link";
 import MetricsRefreshButton from "../components/MetricsRefreshButton";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ export default async function EpisodesPage() {
                 <th className="px-4 py-3 text-right">Saves</th>
                 <th className="px-4 py-3 text-right">Plays</th>
                 <th className="px-4 py-3 text-left">Metrics</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
@@ -68,7 +70,9 @@ export default async function EpisodesPage() {
                     <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{ep.scheduled_for}</td>
                     <td className="px-4 py-3">{badge(ep.status)}</td>
                     <td className="px-4 py-3 text-zinc-300 max-w-xs truncate">
-                      {story?.headline ?? "—"}
+                      <Link href={`/episodes/${ep.id}`} className="hover:text-white transition-colors">
+                        {story?.headline ?? "—"}
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-right"><MetricCell value={m?.reach} /></td>
                     <td className="px-4 py-3 text-right"><MetricCell value={m?.impressions} /></td>
@@ -85,6 +89,11 @@ export default async function EpisodesPage() {
                       ) : (
                         <span className="text-zinc-700 text-xs">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link href={`/episodes/${ep.id}`} className="text-zinc-600 hover:text-zinc-300 text-sm transition-colors">
+                        →
+                      </Link>
                     </td>
                   </tr>
                 );
