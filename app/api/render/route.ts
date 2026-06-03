@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { renderMediaOnLambda, getRenderProgress } from "@remotion/lambda/client";
+import { renderMediaOnLambda } from "@remotion/lambda/client";
 import { supabase } from "@/lib/supabase";
 
 const REGION = process.env.REMOTION_REGION as import("@remotion/lambda").AwsRegion;
@@ -9,21 +9,6 @@ const S3_BUCKET = process.env.REMOTION_S3_BUCKET!;
 
 process.env.AWS_ACCESS_KEY_ID = process.env.REMOTION_AWS_ACCESS_KEY_ID!;
 process.env.AWS_SECRET_ACCESS_KEY = process.env.REMOTION_AWS_SECRET_ACCESS_KEY!;
-
-async function waitForRender(renderId: string, bucketName: string): Promise<string> {
-  for (let i = 0; i < 120; i++) {
-    const progress = await getRenderProgress({ renderId, bucketName, functionName: FUNCTION_NAME, region: REGION });
-
-    if (progress.done) {
-      return progress.outputFile!;
-    }
-    if (progress.fatalErrorEncountered) {
-      throw new Error(progress.errors[0]?.message ?? "Render failed");
-    }
-    await new Promise((r) => setTimeout(r, 5000));
-  }
-  throw new Error("Render timed out after 10 minutes");
-}
 
 export async function POST() {
   const { data: episode, error: fetchError } = await supabase
@@ -66,22 +51,5 @@ export async function POST() {
     .update({ status: "rendering", error: null })
     .eq("id", episode.id);
 
-  let outputFile: string;
-  try {
-    outputFile = await waitForRender(renderId, bucketName);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Render failed";
-    await supabase
-      .from("episodes")
-      .update({ status: "voiced", error: msg })
-      .eq("id", episode.id);
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-
-  await supabase
-    .from("episodes")
-    .update({ video_url: outputFile, status: "rendered", error: null })
-    .eq("id", episode.id);
-
-  return NextResponse.json({ success: true, episode_id: episode.id, video_url: outputFile });
+  return NextResponse.json({ success: true, episode_id: episode.id, renderId, bucketName });
 }

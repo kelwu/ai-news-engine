@@ -55,12 +55,27 @@ export default function ApproveButton({
     setError("");
     try {
       if (format === "reel" || format === "both") {
-        setLog("Rendering reel…");
+        setLog("Starting reel render…");
         const res = await fetch("/api/render", { method: "POST" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setError(data.error ?? `Reel render failed (${res.status})`);
           return;
+        }
+
+        const { renderId, bucketName, episode_id } = data;
+        setLog("Rendering reel…");
+        while (true) {
+          await new Promise((r) => setTimeout(r, 5000));
+          const statusRes = await fetch("/api/render-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ episode_id, renderId, bucketName }),
+          });
+          const statusData = await statusRes.json().catch(() => ({}));
+          if (statusData.error) { setError(statusData.error); return; }
+          if (statusData.done) break;
+          if (statusData.progress != null) setLog(`Rendering reel… ${statusData.progress}%`);
         }
       }
 
