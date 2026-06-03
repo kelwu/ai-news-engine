@@ -1,4 +1,4 @@
-import { AbsoluteFill, Img } from "remotion";
+import { AbsoluteFill, Img, useVideoConfig } from "remotion";
 import { loadFont } from "@remotion/google-fonts/PlusJakartaSans";
 
 const { fontFamily } = loadFont();
@@ -130,6 +130,24 @@ function CoverSlide({ coverHeadline, date, stories, images }: Pick<CarouselSlide
 
 // ── Slides 1–3: Story ─────────────────────────────────────────────
 function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slideNum: number; total: number; imgUrl: string }) {
+  const { height } = useVideoConfig();
+
+  const BODY_FONT_SIZE = 32;
+  const BODY_LINE_HEIGHT_RATIO = 1.6;
+  const pxPerLine = BODY_FONT_SIZE * BODY_LINE_HEIGHT_RATIO;
+
+  // Sum of every fixed-height zone (worst-case estimates so body never overflows)
+  const fixedPx =
+    48 + 40   // outer padding top + bottom
+    + 56 + 20  // zone 1: category label + margin
+    + 144 + 20 // zone 2: thumbnail row height + margin
+    + 20       // zone 3: body bottom margin
+    + 114 + 20 // zone 4: data cards + margin
+    + 170      // zone 5: signal box (2-line kelsTake worst case)
+    + 27 + 16; // zone 6: brand + margin-top
+
+  const maxBodyLines = Math.max(3, Math.floor((height - fixedPx) / pxPerLine));
+
   return (
     <AbsoluteFill style={{ background: S_BG, overflow: "hidden" }}>
       {/* Top accent stripe */}
@@ -161,10 +179,15 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
           ) : null}
         </div>
 
-        {/* ZONE 3: Body — flex:1, takes all remaining space */}
+        {/* ZONE 3: Body — flex:1, clamped to computed line count */}
         <div style={{ flex: 1, marginBottom: 20, overflow: "hidden" }}>
           {story.body && (
-            <p style={{ color: S_TEXT, fontSize: 32, fontWeight: 400, lineHeight: 1.6, margin: 0, fontFamily }}>
+            <p style={{
+              color: S_TEXT, fontSize: BODY_FONT_SIZE, fontWeight: 400,
+              lineHeight: BODY_LINE_HEIGHT_RATIO, margin: 0, fontFamily,
+              display: "-webkit-box", WebkitBoxOrient: "vertical",
+              WebkitLineClamp: maxBodyLines, overflow: "hidden",
+            }}>
               {story.body}
             </p>
           )}
