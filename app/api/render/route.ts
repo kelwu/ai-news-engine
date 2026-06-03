@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { renderMediaOnLambda, getRenderProgress } from "@remotion/lambda/client";
 import { supabase } from "@/lib/supabase";
 
-const REGION = process.env.REMOTION_REGION as "us-west-2";
+const REGION = process.env.REMOTION_REGION as import("@remotion/lambda").AwsRegion;
 const FUNCTION_NAME = process.env.REMOTION_FUNCTION_NAME ?? "remotion-render-4-0-448-mem2048mb-disk2048mb-300sec";
 const SERVE_URL = process.env.REMOTION_SERVE_URL!;
 const S3_BUCKET = process.env.REMOTION_S3_BUCKET!;
