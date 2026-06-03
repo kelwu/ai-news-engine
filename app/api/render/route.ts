@@ -57,7 +57,8 @@ export async function POST() {
     codec: "h264",
     outName: `${episode.id}.mp4`,
     concurrencyPerLambda: 1,
-    framesPerLambda: 300,
+    framesPerLambda: 750,
+    maxRetries: 2,
   });
 
   await supabase

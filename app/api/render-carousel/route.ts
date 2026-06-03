@@ -65,9 +65,10 @@ export async function POST() {
 
   let carouselUrls: string[];
   try {
-    carouselUrls = await Promise.all(
-      [0, 1, 2, 3, 4].map((i) => renderAndUpload(i, sharedProps, episode.id))
-    );
+    carouselUrls = [];
+    for (const i of [0, 1, 2, 3, 4]) {
+      carouselUrls.push(await renderAndUpload(i, sharedProps, episode.id));
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: `Render failed: ${msg}` }, { status: 500 });
