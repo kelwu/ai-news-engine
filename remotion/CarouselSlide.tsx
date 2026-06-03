@@ -162,9 +162,9 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
         </div>
 
         {/* ZONE 3: Body — flex:1, takes all remaining space */}
-        <div style={{ flex: 1, marginBottom: 20 }}>
+        <div style={{ flex: 1, marginBottom: 20, overflow: "hidden" }}>
           {story.body && (
-            <p style={{ color: S_TEXT, fontSize: 36, fontWeight: 400, lineHeight: 1.65, margin: 0, fontFamily }}>
+            <p style={{ color: S_TEXT, fontSize: 32, fontWeight: 400, lineHeight: 1.6, margin: 0, fontFamily }}>
               {story.body}
             </p>
           )}
