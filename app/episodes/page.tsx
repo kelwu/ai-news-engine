@@ -39,7 +39,7 @@ export default async function EpisodesPage() {
   const supabase = getSupabaseServer();
   const { data: episodes } = await supabase
     .from("episodes")
-    .select("id, scheduled_for, status, selected_story, video_url, created_at, instagram_reel_id, instagram_carousel_id, ig_metrics, ig_metrics_at")
+    .select("id, scheduled_for, status, selected_story, video_url, created_at, instagram_reel_id, instagram_carousel_id, instagram_reel_url, instagram_carousel_url, ig_metrics, ig_metrics_at")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -71,6 +71,9 @@ export default async function EpisodesPage() {
                 const metrics = ep.ig_metrics as Record<string, Record<string, number>> | null;
                 const m = metrics?.reel ?? metrics?.carousel;
                 const hasPostId = !!(ep.instagram_reel_id || ep.instagram_carousel_id);
+                const igUrl = (ep as { instagram_reel_url?: string; instagram_carousel_url?: string }).instagram_reel_url
+                  ?? (ep as { instagram_carousel_url?: string }).instagram_carousel_url
+                  ?? null;
                 const lastFetched = ep.ig_metrics_at
                   ? new Date(ep.ig_metrics_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
                   : null;
@@ -80,9 +83,16 @@ export default async function EpisodesPage() {
                     <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{ep.scheduled_for ? humanizeDate(ep.scheduled_for) : "—"}</td>
                     <td className="px-4 py-3">{badge(ep.status)}</td>
                     <td className="px-4 py-3 text-zinc-300">
-                      <Link href={`/episodes/${ep.id}`} className="hover:text-white transition-colors">
-                        {story?.headline ?? "—"}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/episodes/${ep.id}`} className="hover:text-white transition-colors">
+                          {story?.headline ?? "—"}
+                        </Link>
+                        {igUrl && (
+                          <a href={igUrl} target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-pink-400 transition-colors shrink-0" title="View on Instagram">
+                            ↗
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right"><MetricCell value={m?.reach} /></td>
                     <td className="px-4 py-3 text-right"><MetricCell value={m?.impressions} /></td>

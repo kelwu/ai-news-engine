@@ -8,6 +8,29 @@ const STEPS = [
   { status: "imaged",   route: "/api/voiceover",       label: "Voiceover" },
 ];
 
+type LogEntry = { text: string; state: "running" | "done" | "skipped" | "error" };
+
+function LogLine({ entry }: { entry: LogEntry }) {
+  if (entry.state === "running") {
+    return (
+      <li className="flex items-center gap-2 text-white">
+        <svg className="animate-spin shrink-0 w-3 h-3 text-blue-400" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+        </svg>
+        <span>{entry.text}</span>
+      </li>
+    );
+  }
+  if (entry.state === "done") {
+    return <li className="flex items-center gap-2 text-emerald-400"><span className="shrink-0">✓</span><span>{entry.text}</span></li>;
+  }
+  if (entry.state === "skipped") {
+    return <li className="flex items-center gap-2 text-zinc-500"><span className="shrink-0">⏭</span><span>{entry.text}</span></li>;
+  }
+  return <li className="flex items-center gap-2 text-red-400"><span className="shrink-0">✗</span><span>{entry.text}</span></li>;
+}
+
 export default function RunPipeline({
   currentStatus,
   recommendedFormat,
@@ -18,7 +41,11 @@ export default function RunPipeline({
   forceNew?: boolean;
 }) {
   const [running, setRunning] = useState(false);
-  const [log, setLog] = useState<string[]>([]);
+  const [log, setLog] = useState<LogEntry[]>([]);
+
+  function pushLog(entry: LogEntry) {
+    setLog((l) => [...l, entry]);
+  }
 
   async function run() {
     setRunning(true);
@@ -32,10 +59,11 @@ export default function RunPipeline({
       : 0;
     const stepsToRun = startIndex >= 0 ? STEPS.slice(startIndex) : STEPS;
 
-    let skipVoiceover = recommendedFormat === "carousel";
+    const skipVoiceover = recommendedFormat === "carousel";
 
     for (const step of stepsToRun) {
-      setLog((l) => [...l, step.route === "/api/voiceover" && skipVoiceover ? "⏭ Skipping voiceover (carousel)…" : `Running ${step.label}…`]);
+      const isSkip = step.route === "/api/voiceover" && skipVoiceover;
+      pushLog({ text: isSkip ? "Skipping voiceover (carousel)" : step.label, state: "running" });
 
       let body: string | undefined;
       if (step.route === "/api/ingest" && forceNew) body = JSON.stringify({ force: true });
@@ -48,21 +76,23 @@ export default function RunPipeline({
       });
       const data = await res.json();
 
-      if (!res.ok) {
-        setLog((l) => [...l, `✗ ${step.label} failed: ${data.error}`]);
-        setRunning(false);
-        return;
-      }
+      // Replace last "running" entry with result
+      setLog((l) => {
+        const next = [...l];
+        if (!res.ok) {
+          next[next.length - 1] = { text: `${step.label}: ${data.error}`, state: "error" };
+        } else if (isSkip) {
+          next[next.length - 1] = { text: "Voiceover skipped", state: "skipped" };
+        } else if (step.route === "/api/generate-script") {
+          next[next.length - 1] = { text: "Stories ready — select below", state: "done" };
+        } else {
+          next[next.length - 1] = { text: step.label, state: "done" };
+        }
+        return next;
+      });
 
-      if (step.route === "/api/generate-script") {
-        setLog((l) => [...l, "✓ Stories ready — select below"]);
-        setRunning(false);
-        window.location.reload();
-        return;
-      }
-
-      const doneLabel = step.route === "/api/voiceover" && skipVoiceover ? "⏭ Voiceover skipped" : `✓ ${step.label} done`;
-      setLog((l) => [...l, doneLabel]);
+      if (!res.ok) { setRunning(false); return; }
+      if (step.route === "/api/generate-script") { setRunning(false); window.location.reload(); return; }
     }
 
     setRunning(false);
@@ -71,10 +101,8 @@ export default function RunPipeline({
 
   const label = running
     ? "Running…"
-    : forceNew
-    ? "Run pipeline"
-    : currentStatus
-    ? "Continue pipeline"
+    : forceNew ? "Run pipeline"
+    : currentStatus ? "Continue pipeline"
     : "Run pipeline";
 
   return (
@@ -87,10 +115,8 @@ export default function RunPipeline({
         {label}
       </button>
       {log.length > 0 && (
-        <ul className="text-xs text-zinc-400 space-y-1 font-mono">
-          {log.map((l, i) => (
-            <li key={i}>{l}</li>
-          ))}
+        <ul className="text-xs space-y-1.5 font-mono">
+          {log.map((entry, i) => <LogLine key={i} entry={entry} />)}
         </ul>
       )}
     </div>

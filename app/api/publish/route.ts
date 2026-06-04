@@ -45,11 +45,21 @@ async function publishWithRetry(creationId: string, maxAttempts = 5): Promise<st
   throw lastError!;
 }
 
+async function fetchPermalink(mediaId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${IG_API}/${mediaId}?fields=permalink&access_token=${ACCESS_TOKEN}`);
+    const data = await res.json() as { permalink?: string };
+    return data.permalink ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function publishReel(episode: {
   video_url: string;
   caption: string;
   hashtags: string;
-}): Promise<string> {
+}): Promise<{ id: string; permalink: string | null }> {
   const caption = `${episode.caption}\n\n${episode.hashtags}`;
 
   const { id: creationId } = await igPost(`${ACCOUNT_ID}/media`, {
@@ -59,17 +69,18 @@ async function publishReel(episode: {
   });
 
   await pollUntilReady(creationId);
-  return await publishWithRetry(creationId);
+  const id = await publishWithRetry(creationId);
+  const permalink = await fetchPermalink(id);
+  return { id, permalink };
 }
 
 async function publishCarousel(episode: {
   carousel_urls: string[];
   caption: string;
   hashtags: string;
-}): Promise<string> {
+}): Promise<{ id: string; permalink: string | null }> {
   const caption = `${episode.caption}\n\n${episode.hashtags}`;
 
-  // Create a container for each image
   const itemIds = await Promise.all(
     episode.carousel_urls.map(async (url) => {
       const { id } = await igPost(`${ACCOUNT_ID}/media`, {
@@ -80,14 +91,15 @@ async function publishCarousel(episode: {
     })
   );
 
-  // Create carousel container
   const { id: creationId } = await igPost(`${ACCOUNT_ID}/media`, {
     media_type: "CAROUSEL",
     children: itemIds.join(","),
     caption,
   });
 
-  return await publishWithRetry(creationId);
+  const id = await publishWithRetry(creationId);
+  const permalink = await fetchPermalink(id);
+  return { id, permalink };
 }
 
 export async function POST(req: NextRequest) {
@@ -112,30 +124,28 @@ export async function POST(req: NextRequest) {
     : (episode.caption_carousel ?? episode.caption);
 
   try {
-    const result: { reel_id?: string; carousel_id?: string } = {};
+    const update: Record<string, string | null> = {};
 
     if (format === "reel" || format === "both") {
       if (!episode.video_url) return NextResponse.json({ error: "No video URL — render the reel first" }, { status: 400 });
-      result.reel_id = await publishReel({ ...episode, caption: reelCaption });
+      const { id, permalink } = await publishReel({ ...episode, caption: reelCaption });
+      update.instagram_reel_id = id;
+      update.instagram_reel_url = permalink;
     }
 
     if (format === "carousel" || format === "both") {
       if (!episode.carousel_urls?.length) return NextResponse.json({ error: "No carousel URLs — render the carousel first" }, { status: 400 });
-      result.carousel_id = await publishCarousel({ ...episode, caption: carouselCaption });
+      const { id, permalink } = await publishCarousel({ ...episode, caption: carouselCaption });
+      update.instagram_carousel_id = id;
+      update.instagram_carousel_url = permalink;
     }
 
     await supabase
       .from("episodes")
-      .update({
-        status: "published",
-        error: null,
-        ...(result.reel_id ? { instagram_reel_id: result.reel_id } : {}),
-        ...(result.carousel_id ? { instagram_carousel_id: result.carousel_id } : {}),
-        posted_at: new Date().toISOString(),
-      })
+      .update({ status: "published", error: null, posted_at: new Date().toISOString(), ...update })
       .eq("id", episode_id);
 
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json({ success: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Publish failed";
     return NextResponse.json({ error: msg }, { status: 500 });
