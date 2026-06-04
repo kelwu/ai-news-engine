@@ -19,8 +19,8 @@ export default async function SettingsPage() {
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
         <div className="p-5">
           <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Posting cadence</p>
-          <p className="text-white">Every 2 days at 8am PT</p>
-          <p className="text-zinc-500 text-xs mt-1">Edit <code className="text-zinc-400">vercel.json</code> to change the cron schedule.</p>
+          <p className="text-white font-mono text-sm">0 15 */2 * *</p>
+          <p className="text-zinc-500 text-xs mt-1">Every 2 days at 7am PT. Edit <code className="text-zinc-400">vercel.json</code> to change.</p>
         </div>
 
         <div className="p-5">

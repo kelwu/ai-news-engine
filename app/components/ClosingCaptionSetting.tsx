@@ -12,10 +12,10 @@ export default function ClosingCaptionSetting({ initial }: { initial: string | n
 
   async function save() {
     setStatus("saving");
-    const res = await fetch("/api/settings/closing-caption", {
+    const res = await fetch("/api/save-closing-caption", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ value }),
+      body: JSON.stringify({ closing_caption: value }),
     });
     setStatus(res.ok ? "saved" : "error");
     if (res.ok) setTimeout(() => setStatus("idle"), 2000);
