@@ -14,13 +14,13 @@ export async function POST() {
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
     .select("id, selected_story, script, image_url, image_urls, voiceover_url, caption, hashtags")
-    .in("status", ["voiced", "rendering"])
+    .eq("status", "voiced")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
-  if (!episode) return NextResponse.json({ error: "No voiced episode found" }, { status: 404 });
+  if (!episode) return NextResponse.json({ error: "No voiced episode found — render may already be in progress" }, { status: 409 });
 
   const story = episode.selected_story as { headline: string; source: string };
 
