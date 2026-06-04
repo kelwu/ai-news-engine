@@ -11,11 +11,13 @@ const PIPELINE_STEPS = ["ingested", "story_selection", "scripted", "imaged", "vo
 const STEP_LABELS: Record<string, string> = { story_selection: "select stories" };
 
 function StatusStep({ step, current, error }: { step: string; current: string; error?: string | null }) {
-  const ci = PIPELINE_STEPS.indexOf(current);
+  const effectiveCurrent = current === "rendering" ? "rendered" : current;
+  const ci = PIPELINE_STEPS.indexOf(effectiveCurrent);
   const si = PIPELINE_STEPS.indexOf(step);
   const done = ci > si;
-  const active = current === step;
+  const active = effectiveCurrent === step;
   const isError = error && active;
+  const isInProgress = current === "rendering" && step === "rendered";
   const label = STEP_LABELS[step] ?? step;
 
   return (
@@ -23,7 +25,7 @@ function StatusStep({ step, current, error }: { step: string; current: string; e
       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
         isError ? "bg-red-500 text-white" : done ? "bg-emerald-500 text-white" : active ? "bg-blue-500 text-white" : "bg-zinc-800 text-zinc-500"
       }`}>
-        {isError ? "!" : done ? "✓" : si + 1}
+        {isError ? "!" : done ? "✓" : isInProgress ? "…" : si + 1}
       </div>
       <span className={`text-sm capitalize ${done || active ? "text-white" : "text-zinc-500"}`}>{label}</span>
     </div>

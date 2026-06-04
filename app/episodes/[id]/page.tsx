@@ -61,17 +61,19 @@ export default async function EpisodePage({ params }: { params: Promise<{ id: st
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-3">
         <p className="text-xs text-zinc-500 uppercase tracking-wider">Pipeline</p>
         {PIPELINE_STEPS.map((step) => {
-          const ci = PIPELINE_STEPS.indexOf(episode.status);
+          const effectiveStatus = episode.status === "rendering" ? "rendered" : episode.status;
+          const ci = PIPELINE_STEPS.indexOf(effectiveStatus);
           const si = PIPELINE_STEPS.indexOf(step);
           const done = ci > si;
-          const active = episode.status === step;
+          const active = effectiveStatus === step;
           const isError = episode.error && active;
+          const isInProgress = episode.status === "rendering" && step === "rendered";
           return (
             <div key={step} className="flex items-center gap-3">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                 isError ? "bg-red-500 text-white" : done ? "bg-emerald-500 text-white" : active ? "bg-blue-500 text-white" : "bg-zinc-800 text-zinc-500"
               }`}>
-                {isError ? "!" : done ? "✓" : si + 1}
+                {isError ? "!" : done ? "✓" : isInProgress ? "…" : si + 1}
               </div>
               <span className={`text-sm capitalize ${done || active ? "text-white" : "text-zinc-500"}`}>{step.replace("_", " ")}</span>
             </div>
