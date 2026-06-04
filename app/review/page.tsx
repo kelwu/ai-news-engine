@@ -9,7 +9,7 @@ export default async function ReviewPage() {
   const { data: episode } = await supabase
     .from("episodes")
     .select("*")
-    .in("status", ["voiced", "rendered", "published"])
+    .in("status", ["voiced", "rendering", "rendered", "published"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -192,6 +192,8 @@ export default async function ReviewPage() {
           scheduledAt={(episode as { scheduled_publish_at?: string }).scheduled_publish_at ?? null}
           scheduledFormat={(episode as { scheduled_format?: string }).scheduled_format ?? null}
           savedClosingCaption={savedClosingCaption}
+          pendingRenderId={(episode as { render_id?: string }).render_id ?? null}
+          pendingRenderBucket={(episode as { render_bucket?: string }).render_bucket ?? null}
         />
       </div>
     </div>

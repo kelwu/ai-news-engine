@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Format = "reel" | "carousel" | "both";
 type PublishMode = "now" | "schedule";
@@ -8,6 +8,8 @@ const DEFAULT_CLOSING = `Follow @productbykel for your daily Tech Brief
 
 📺 YouTube: youtube.com/@productbykel
 🎵 TikTok: @productbykel`;
+
+const MAX_POLL_ATTEMPTS = 120; // 10 minutes at 5s intervals
 
 export default function ApproveButton({
   episodeId,
@@ -19,6 +21,8 @@ export default function ApproveButton({
   scheduledAt,
   scheduledFormat,
   savedClosingCaption,
+  pendingRenderId,
+  pendingRenderBucket,
 }: {
   episodeId: string;
   status: string;
@@ -29,6 +33,8 @@ export default function ApproveButton({
   scheduledAt: string | null;
   scheduledFormat: string | null;
   savedClosingCaption: string | null;
+  pendingRenderId?: string | null;
+  pendingRenderBucket?: string | null;
 }) {
   const defaultFormat = (recommendedFormat as Format) ?? "reel";
   const [format, setFormat] = useState<Format>((scheduledFormat as Format) ?? defaultFormat);
@@ -40,6 +46,32 @@ export default function ApproveButton({
   const [mode, setMode] = useState<PublishMode>("now");
   const [scheduleTime, setScheduleTime] = useState("");
   const [currentSchedule, setCurrentSchedule] = useState<string | null>(scheduledAt);
+
+  async function pollRenderStatus(renderId: string, bucketName: string, episode_id: string) {
+    for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const statusRes = await fetch("/api/render-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ episode_id, renderId, bucketName }),
+      });
+      const statusData = await statusRes.json().catch(() => ({}));
+      if (statusData.error) { setError(statusData.error); setRunning(false); return; }
+      if (statusData.done) { setLog(""); setRunning(false); window.location.reload(); return; }
+      if (statusData.progress != null) setLog(`Rendering reel… ${statusData.progress}%`);
+    }
+    setError("Render timed out — try re-rendering");
+    setRunning(false);
+  }
+
+  useEffect(() => {
+    if (status === "rendering" && pendingRenderId && pendingRenderBucket && !running) {
+      setRunning(true);
+      setLog("Resuming render…");
+      pollRenderStatus(pendingRenderId, pendingRenderBucket, episodeId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const assetsExist =
     status === "rendered" ||
@@ -65,18 +97,8 @@ export default function ApproveButton({
 
         const { renderId, bucketName, episode_id } = data;
         setLog("Rendering reel…");
-        while (true) {
-          await new Promise((r) => setTimeout(r, 5000));
-          const statusRes = await fetch("/api/render-status", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ episode_id, renderId, bucketName }),
-          });
-          const statusData = await statusRes.json().catch(() => ({}));
-          if (statusData.error) { setError(statusData.error); return; }
-          if (statusData.done) break;
-          if (statusData.progress != null) setLog(`Rendering reel… ${statusData.progress}%`);
-        }
+        await pollRenderStatus(renderId, bucketName, episode_id);
+        return;
       }
 
       if (format === "carousel" || format === "both") {

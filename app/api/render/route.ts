@@ -48,7 +48,7 @@ export async function POST() {
 
   await supabase
     .from("episodes")
-    .update({ status: "rendering", error: null })
+    .update({ status: "rendering", render_id: renderId, render_bucket: bucketName, error: null })
     .eq("id", episode.id);
 
   return NextResponse.json({ success: true, episode_id: episode.id, renderId, bucketName });
