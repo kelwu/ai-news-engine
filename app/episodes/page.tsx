@@ -6,10 +6,20 @@ export const dynamic = "force-dynamic";
 
 const STATUS_COLORS: Record<string, string> = {
   published: "bg-emerald-500/20 text-emerald-400",
-  rendered: "bg-blue-500/20 text-blue-400",
-  error: "bg-red-500/20 text-red-400",
-  pending: "bg-zinc-700/40 text-zinc-400",
+  rendered:  "bg-blue-500/20 text-blue-400",
+  rendering: "bg-blue-500/20 text-blue-400",
+  error:     "bg-red-500/20 text-red-400",
+  pending:   "bg-zinc-700/40 text-zinc-400",
 };
+
+function humanizeDate(dateStr: string): string {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  if (dateStr === today) return "Today";
+  if (dateStr === yesterday) return "Yesterday";
+  const [, month, day] = dateStr.split("-");
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 function badge(status: string) {
   const cls = STATUS_COLORS[status] ?? "bg-yellow-500/20 text-yellow-400";
@@ -67,9 +77,9 @@ export default async function EpisodesPage() {
 
                 return (
                   <tr key={ep.id} className="bg-zinc-950 hover:bg-zinc-900 transition-colors">
-                    <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{ep.scheduled_for}</td>
+                    <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{ep.scheduled_for ? humanizeDate(ep.scheduled_for) : "—"}</td>
                     <td className="px-4 py-3">{badge(ep.status)}</td>
-                    <td className="px-4 py-3 text-zinc-300 max-w-xs truncate">
+                    <td className="px-4 py-3 text-zinc-300">
                       <Link href={`/episodes/${ep.id}`} className="hover:text-white transition-colors">
                         {story?.headline ?? "—"}
                       </Link>

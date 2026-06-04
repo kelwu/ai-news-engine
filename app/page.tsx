@@ -52,7 +52,11 @@ export default async function Home() {
     <div className="space-y-8">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Today&apos;s Episode</h1>
+          <h1 className="text-2xl font-bold text-white">
+            {episode?.scheduled_for === new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" })
+              ? "Today's Episode"
+              : "Latest Episode"}
+          </h1>
           <p className="text-zinc-500 text-sm mt-1">{episode?.scheduled_for ?? new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" })}</p>
         </div>
         <RunPipeline forceNew />
