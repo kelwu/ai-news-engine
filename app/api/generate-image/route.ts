@@ -3,6 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { fal } from "@fal-ai/client";
 import { supabase } from "@/lib/supabase";
 
+export const maxDuration = 120;
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 fal.config({ credentials: process.env.FAL_API_KEY });

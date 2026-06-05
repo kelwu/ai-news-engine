@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { renderStillOnLambda } from "@remotion/lambda/client";
 import { supabase } from "@/lib/supabase";
 
+export const maxDuration = 300;
+
 const REGION = process.env.REMOTION_REGION as import("@remotion/lambda").AwsRegion;
 const FUNCTION_NAME = process.env.REMOTION_FUNCTION_NAME!;
 const SERVE_URL = process.env.REMOTION_SERVE_URL!;
