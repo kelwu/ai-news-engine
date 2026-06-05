@@ -28,7 +28,7 @@ Format recommendation:
 - "carousel": educational, multiple distinct points, how-it-works
 - "both": high-importance story worth maximum reach
 
-Carousel candidates: suggest 3-5 stories from the list (by index) that would work well as carousel slides. The user will make the final selection. Give a brief reason per story (1 sentence) explaining why it's a good carousel candidate.
+Carousel candidates (REQUIRED — always provide exactly 3): Pick the 3 best stories from the raw list for the carousel by their 0-based index. Include one even if you would not normally recommend it — the user overrides your selection. Give a one-sentence reason per story. Never leave carousel_candidates empty.
 
 Caption writing rules (Instagram best practices — applies to both caption fields):
 - Line 1 is the hook — must be under 125 characters (the "more" cutoff). Make it a bold claim, surprising stat, or question that demands a tap.
@@ -69,7 +69,9 @@ const FINALIZE_OUTPUT_TOOL: Anthropic.Tool = {
       format_reason: { type: "string", description: "One sentence explaining the format recommendation" },
       carousel_candidates: {
         type: "array",
-        description: "3-5 stories suggested for the carousel, by index in the raw stories list",
+        description: "REQUIRED: exactly 3 stories for the carousel, chosen by their 0-based index in the raw stories array. Must never be empty.",
+        minItems: 3,
+        maxItems: 5,
         items: {
           type: "object",
           properties: {
