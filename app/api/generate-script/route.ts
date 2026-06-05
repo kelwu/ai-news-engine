@@ -119,33 +119,39 @@ export async function POST() {
   let result: FinalOutput | null = null;
   const MAX_ITERATIONS = 10;
 
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8192,
-      thinking: { type: "adaptive" },
-      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-      tools: [WEB_FETCH_TOOL, FINALIZE_OUTPUT_TOOL],
-      messages,
-    });
+  try {
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 8192,
+        thinking: { type: "adaptive" },
+        system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+        tools: [WEB_FETCH_TOOL, FINALIZE_OUTPUT_TOOL],
+        messages,
+      });
 
-    messages.push({ role: "assistant", content: response.content });
+      messages.push({ role: "assistant", content: response.content });
 
-    if (response.stop_reason === "end_turn") break;
-    if (response.stop_reason === "pause_turn") continue;
+      if (response.stop_reason === "end_turn") break;
+      if (response.stop_reason === "pause_turn") continue;
 
-    for (const block of response.content) {
-      if (block.type === "tool_use" && block.name === "finalize_output") {
-        result = block.input as FinalOutput;
-        break;
+      for (const block of response.content) {
+        if (block.type === "tool_use" && block.name === "finalize_output") {
+          result = block.input as FinalOutput;
+          break;
+        }
       }
-    }
 
-    if (result) break;
+      if (result) break;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await supabase.from("episodes").update({ status: "ingested", error: msg }).eq("id", episode.id);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   if (!result) {
-    await supabase.from("episodes").update({ status: "error", error: "Agent did not produce output" }).eq("id", episode.id);
+    await supabase.from("episodes").update({ status: "ingested", error: "Agent did not produce output" }).eq("id", episode.id);
     return NextResponse.json({ error: "Agent did not produce output after max iterations" }, { status: 500 });
   }
 

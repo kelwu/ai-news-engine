@@ -74,13 +74,13 @@ export default function RunPipeline({
         headers: body ? { "Content-Type": "application/json" } : undefined,
         body,
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({})) as { error?: string };
 
       // Replace last "running" entry with result
       setLog((l) => {
         const next = [...l];
         if (!res.ok) {
-          next[next.length - 1] = { text: `${step.label}: ${data.error}`, state: "error" };
+          next[next.length - 1] = { text: `${step.label}: ${data.error ?? `Server error (${res.status})`}`, state: "error" };
         } else if (isSkip) {
           next[next.length - 1] = { text: "Voiceover skipped", state: "skipped" };
         } else if (step.route === "/api/generate-script") {
