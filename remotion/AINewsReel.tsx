@@ -37,25 +37,36 @@ function splitScript(script: string): string[] {
   return chunks;
 }
 
+const CROSSFADE = 15;
+
+type Motion = { scaleFrom: number; scaleTo: number; xFrom: number; xTo: number; yFrom: number; yTo: number };
+
+const MOTIONS: Motion[] = [
+  { scaleFrom: 1.00, scaleTo: 1.20, xFrom: -25, xTo: 25,  yFrom: 0,   yTo: -15 }, // zoom in, pan right + up
+  { scaleFrom: 1.20, scaleTo: 1.00, xFrom: 25,  xTo: -25, yFrom: -15, yTo: 0   }, // zoom out, pan left + down
+  { scaleFrom: 1.05, scaleTo: 1.25, xFrom: 0,   xTo: 0,   yFrom: 20,  yTo: -20 }, // zoom in, pan up
+  { scaleFrom: 1.25, scaleTo: 1.05, xFrom: 0,   xTo: 0,   yFrom: -20, yTo: 20  }, // zoom out, pan down
+  { scaleFrom: 1.00, scaleTo: 1.22, xFrom: 25,  xTo: -25, yFrom: 15,  yTo: -15 }, // zoom in, diagonal
+  { scaleFrom: 1.22, scaleTo: 1.00, xFrom: -25, xTo: 25,  yFrom: -15, yTo: 15  }, // zoom out, reverse diagonal
+];
+
 function ImageSlide({
   src,
+  motion,
   frame,
   switchIn,
   switchOut,
-  durationInFrames,
   isFirst,
   isLast,
 }: {
   src: string;
+  motion: Motion;
   frame: number;
   switchIn: number;
   switchOut: number;
-  durationInFrames: number;
   isFirst: boolean;
   isLast: boolean;
 }) {
-  const CROSSFADE = 15;
-
   const opacity = interpolate(
     frame,
     [switchIn, switchIn + CROSSFADE, switchOut - CROSSFADE, switchOut],
@@ -63,10 +74,20 @@ function ImageSlide({
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  const scale = interpolate(frame, [switchIn, switchOut], [1.0, 1.08], {
+  const scale = interpolate(frame, [switchIn, switchOut], [motion.scaleFrom, motion.scaleTo], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-    easing: Easing.out(Easing.quad),
+    easing: Easing.inOut(Easing.quad),
+  });
+  const tx = interpolate(frame, [switchIn, switchOut], [motion.xFrom, motion.xTo], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
+  });
+  const ty = interpolate(frame, [switchIn, switchOut], [motion.yFrom, motion.yTo], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOut(Easing.quad),
   });
 
   return (
@@ -77,8 +98,8 @@ function ImageSlide({
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          opacity: 0.72,
-          transform: `scale(${scale})`,
+          opacity: 0.85,
+          transform: `scale(${scale}) translate(${tx}px, ${ty}px)`,
           transformOrigin: "center center",
         }}
       />
@@ -100,8 +121,8 @@ export const AINewsReel: React.FC<AINewsReelProps> = ({
   const { fps, durationInFrames } = useVideoConfig();
 
   const images = image_urls?.length ? image_urls : [image_url];
-  const N = images.length;
-  const slot = durationInFrames / N;
+  const N_SLOTS = 6; // 6 visual moments cycling through the 3 images for more dynamism
+  const slot = (durationInFrames + CROSSFADE * (N_SLOTS - 1)) / N_SLOTS;
 
   const segments = splitScript(summary);
   const segmentFrames = Math.floor(durationInFrames / segments.length);
@@ -145,19 +166,23 @@ export const AINewsReel: React.FC<AINewsReelProps> = ({
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000", opacity: globalOpacity }}>
-      {/* Crossfading images with Ken Burns */}
-      {images.map((src, i) => (
-        <ImageSlide
-          key={i}
-          src={src}
-          frame={frame}
-          switchIn={i * slot}
-          switchOut={(i + 1) * slot}
-          durationInFrames={durationInFrames}
-          isFirst={i === 0}
-          isLast={i === N - 1}
-        />
-      ))}
+      {/* Crossfading images with overlapping slots — proper crossfade, no black gaps */}
+      {Array.from({ length: N_SLOTS }, (_, i) => {
+        const switchIn = i * (slot - CROSSFADE);
+        const switchOut = switchIn + slot;
+        return (
+          <ImageSlide
+            key={i}
+            src={images[i % images.length]}
+            motion={MOTIONS[i % MOTIONS.length]}
+            frame={frame}
+            switchIn={switchIn}
+            switchOut={switchOut}
+            isFirst={i === 0}
+            isLast={i === N_SLOTS - 1}
+          />
+        );
+      })}
 
       {/* Gradient overlays */}
       <AbsoluteFill
