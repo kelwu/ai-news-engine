@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -45,6 +45,9 @@ type CarouselDataShape = {
   stories: StoryShape[];
 };
 
+
+const WEB_FETCH_TOOL = { type: "web_fetch_20260209" as const, name: "web_fetch" as const };
+const BETAS: Anthropic.BetaRequestParam[] = ["web-search-2025-03-05"];
 
 const GENERATE_CAROUSEL_TOOL: Anthropic.Tool = {
   name: "generate_carousel_data",
@@ -173,55 +176,93 @@ export async function POST(req: NextRequest) {
 
   const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-  const prompt = `You are generating carousel slide content for @productbykel (Instagram channel for PMs and AI builders).
+  const userMessage = `You are a research agent generating carousel slide content for @productbykel (Instagram channel for PMs and AI builders).
 
 Today is ${dateStr}. The user has selected these 3 stories for today's Tech Brief carousel:
 
 ${selectedStories.map((s, i) => `Story ${i + 1}: ${s.title}\nSource: ${s.source}\nURL: ${s.url}\nSummary: ${s.summary}`).join("\n\n")}
 
-Generate carousel_data for these exactly 3 stories by calling generate_carousel_data with:
+STEP 1 — Fetch every story URL using web_fetch before writing anything. You need the full article to find concrete details.
 
+STEP 2 — After reading all 3 articles, call generate_carousel_data. Requirements:
+
+Body (the main readable text on each slide):
+- 2-3 sentences. Pull actual specifics from the article: benchmark scores, model names, exact numbers, named features, timelines, pricing, company names.
+- Never write vague phrases like "pushes to new highs", "significant improvements", or "major update". Instead: "outperforms GPT-4o on MMLU by 12 points", "cuts inference cost by 40%", "ships in Q3 for $20/mo".
+- If the article has no numbers, use the most specific technical or product detail available.
+
+Cards (3 key facts per slide):
+- Values MUST be numbers, percentages, or currency (e.g. "$33B", "−40%", "10 yrs", "50+", "3x"). Never abstract words like "Inference", "Performance", or a model name alone.
+- If a story truly has no numeric stats, use the shortest possible specific fact (e.g. "On-device", "Real-time", "Open weight") — but always prefer a number.
+- Keys are short descriptive labels for what the value measures.
+
+Other fields:
+- headlineHighlight: a key number, named model, or 1-3-word term — the most concrete hook in the headline.
+- kelsTake: one punchy PM-specific insight, 15-20 words. Opinionated, not generic.
+- coverStat: the single most impressive number from the article.
+
+Schema example:
 {
   "coverHeadline": "6-10 word punchy headline capturing today's overall theme",
   "date": "${dateStr}",
   "stories": [
     {
-      "category": "AI · FUNDING",
+      "category": "AI · RESEARCH",
       "source": "TechCrunch",
       "url": "https://...",
-      "headlinePrefix": "1-3 word intro",
-      "headlineHighlight": "key number or term to show in blue (1-3 words)",
-      "headlineSuffix": "rest of headline ending with period",
-      "body": "2-3 sentences explaining what happened and why it matters. Be specific — reference actual details from the article, not vague summaries.",
+      "headlinePrefix": "Claude 4",
+      "headlineHighlight": "tops MMLU",
+      "headlineSuffix": "by 12 points over GPT-4o.",
+      "body": "Anthropic's Claude 4 scores 92.3 on MMLU, surpassing GPT-4o by 12 points. The model is 40% cheaper per token and ships with a 200K context window. Coding benchmarks show a 2x improvement on HumanEval.",
       "cards": [
-        { "key": "descriptive stat label", "value": "$33B" },
-        { "key": "second stat label", "value": "10 yrs" },
-        { "key": "third stat label", "value": "−40%" }
+        { "key": "MMLU score", "value": "92.3" },
+        { "key": "Cost reduction", "value": "−40%" },
+        { "key": "Context window", "value": "200K" }
       ],
       "kelsTake": "One punchy PM-specific insight sentence, 15-20 words.",
-      "coverStat": { "number": "$33B", "label": "brief cover card description" }
+      "coverStat": { "number": "92.3", "label": "MMLU score" }
     }
   ]
 }
 
-Category examples: "AI · FUNDING", "PRODUCT · STRATEGY", "BIG TECH · AI", "OPEN SOURCE · AI", "POLICY · AI", "AI · RESEARCH"
-Use the actual source name and URL for each story.
-IMPORTANT: Card values must be very short — numbers, percentages, or 2-3 word stats only (e.g. "$33B", "−40%", "10 yrs"). Never sentences.
-Body is the main readable content on each slide — 2-3 informative sentences that a PM would find valuable.`;
+Category examples: "AI · FUNDING", "PRODUCT · STRATEGY", "BIG TECH · AI", "OPEN SOURCE · AI", "POLICY · AI", "AI · RESEARCH"`;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 4096,
-    messages: [{ role: "user", content: prompt }],
-    tools: [GENERATE_CAROUSEL_TOOL],
-    tool_choice: { type: "tool", name: "generate_carousel_data" },
-  });
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
+  let carouselData: CarouselDataShape | null = null;
+  const MAX_ITERATIONS = 10;
 
-  const toolBlock = message.content.find(b => b.type === "tool_use");
-  if (!toolBlock || toolBlock.type !== "tool_use") {
-    return NextResponse.json({ error: "Failed to generate carousel data" }, { status: 500 });
+  try {
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        tools: [WEB_FETCH_TOOL, GENERATE_CAROUSEL_TOOL],
+        betas: BETAS,
+        messages,
+      } as Parameters<typeof anthropic.messages.create>[0]);
+
+      messages.push({ role: "assistant", content: response.content });
+
+      if (response.stop_reason === "end_turn") break;
+      if (response.stop_reason === "pause_turn") continue;
+
+      for (const block of response.content) {
+        if (block.type === "tool_use" && block.name === "generate_carousel_data") {
+          carouselData = block.input as CarouselDataShape;
+          break;
+        }
+      }
+
+      if (carouselData) break;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
-  let carouselData = toolBlock.input as CarouselDataShape;
+
+  if (!carouselData) {
+    return NextResponse.json({ error: "Agent did not produce carousel data after max iterations" }, { status: 500 });
+  }
 
   // Enforce hard character limits — word-boundary truncation, no-op when within budget
   carouselData = enforceHardLimits(carouselData);
