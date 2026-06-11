@@ -108,6 +108,20 @@ function truncateAtWord(text: string, max: number): string {
   return lastSpace > 0 ? cut.slice(0, lastSpace) : cut;
 }
 
+// For body text: cut at the last complete sentence so it never reads as mid-sentence.
+// Falls back to word truncation if no sentence boundary is found in the first half.
+function truncateAtSentence(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastEnd = Math.max(
+    cut.lastIndexOf(". "),
+    cut.lastIndexOf("! "),
+    cut.lastIndexOf("? "),
+  );
+  if (lastEnd >= max * 0.4) return text.slice(0, lastEnd + 1);
+  return truncateAtWord(text, max);
+}
+
 function enforceHardLimits(data: CarouselDataShape): CarouselDataShape {
   return {
     ...data,
@@ -117,7 +131,7 @@ function enforceHardLimits(data: CarouselDataShape): CarouselDataShape {
       headlinePrefix: s.headlinePrefix ? truncateAtWord(s.headlinePrefix, LIMITS.headlinePrefix) : s.headlinePrefix,
       headlineHighlight: s.headlineHighlight ? truncateAtWord(s.headlineHighlight, LIMITS.headlineHighlight) : s.headlineHighlight,
       headlineSuffix: s.headlineSuffix ? truncateAtWord(s.headlineSuffix, LIMITS.headlineSuffix) : s.headlineSuffix,
-      body: s.body ? truncateAtWord(s.body, LIMITS.body) : s.body,
+      body: s.body ? truncateAtSentence(s.body, LIMITS.body) : s.body,
       kelsTake: truncateAtWord(s.kelsTake ?? "", LIMITS.kelsTake),
       cards: (s.cards ?? []).map((c) => ({
         key: truncateAtWord(c.key ?? "", LIMITS.cardKey),
@@ -186,7 +200,8 @@ STEP 1 — Fetch every story URL using web_fetch before writing anything. You ne
 STEP 2 — After reading all 3 articles, call generate_carousel_data. Requirements:
 
 Body (the main readable text on each slide):
-- 2-3 sentences. Pull actual specifics from the article: benchmark scores, model names, exact numbers, named features, timelines, pricing, company names.
+- 2-3 sentences, MAX 240 characters total. Stay well under — do not pad to fill space.
+- Pull actual specifics from the article: benchmark scores, model names, exact numbers, named features, timelines, pricing, company names.
 - Never write vague phrases like "pushes to new highs", "significant improvements", or "major update". Instead: "outperforms GPT-4o on MMLU by 12 points", "cuts inference cost by 40%", "ships in Q3 for $20/mo".
 - If the article has no numbers, use the most specific technical or product detail available.
 
