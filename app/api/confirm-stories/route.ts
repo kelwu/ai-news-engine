@@ -47,7 +47,6 @@ type CarouselDataShape = {
 
 
 const WEB_FETCH_TOOL = { type: "web_fetch_20260209" as const, name: "web_fetch" as const };
-const BETAS: Anthropic.BetaRequestParam[] = ["web-search-2025-03-05"];
 
 const GENERATE_CAROUSEL_TOOL: Anthropic.Tool = {
   name: "generate_carousel_data",
@@ -233,13 +232,13 @@ Category examples: "AI · FUNDING", "PRODUCT · STRATEGY", "BIG TECH · AI", "OP
 
   try {
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const response = await anthropic.messages.create({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (anthropic.messages.create as any)({
         model: "claude-sonnet-4-6",
         max_tokens: 4096,
         tools: [WEB_FETCH_TOOL, GENERATE_CAROUSEL_TOOL],
-        betas: BETAS,
         messages,
-      } as Parameters<typeof anthropic.messages.create>[0]);
+      });
 
       messages.push({ role: "assistant", content: response.content });
 
