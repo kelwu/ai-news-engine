@@ -140,7 +140,7 @@ function StorySlide({ story, slideNum, total, imgUrl }: { story: StoryData; slid
   const fixedPx =
     48 + 40   // outer padding top + bottom
     + 56 + 20  // zone 1: category label + margin
-    + 144 + 20 // zone 2: thumbnail row height + margin
+    + 216 + 20 // zone 2: worst-case 4-line headline at 52px font (taller than the 144px thumbnail)
     + 20       // zone 3: body bottom margin
     + 114 + 20 // zone 4: data cards + margin
     + 170      // zone 5: signal box (2-line kelsTake worst case)

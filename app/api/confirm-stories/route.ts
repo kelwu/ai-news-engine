@@ -17,7 +17,7 @@ const LIMITS = {
   headlineHighlight: 20,// 1-3 words
   headlineSuffix: 50,   // rest of headline ending with period
   headlineCombined: 80, // 52px font, 752px wide (next to 180px thumb), 3 lines
-  body: 280,            // 28px font, 960px wide, ~5 lines of flex space
+  body: 220,            // 32px font, 960px wide, ~4 lines of flex space
   kelsTake: 120,        // 26px font, 912px inner width, 2 lines
   cardKey: 25,          // 22px font, ~273px inner card width
   cardValue: 15,        // 32px font, same card — numbers/stats only
@@ -108,18 +108,21 @@ function truncateAtWord(text: string, max: number): string {
   return lastSpace > 0 ? cut.slice(0, lastSpace) : cut;
 }
 
-// For body text: cut at the last complete sentence so it never reads as mid-sentence.
-// Falls back to word truncation if no sentence boundary is found in the first half.
+// For body text: strip trailing incomplete clauses, then enforce max.
+// Claude sometimes stops mid-sentence when near its self-imposed character budget —
+// this detects that by checking for missing terminal punctuation and trims back.
 function truncateAtSentence(text: string, max: number): string {
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max);
-  const lastEnd = Math.max(
-    cut.lastIndexOf(". "),
-    cut.lastIndexOf("! "),
-    cut.lastIndexOf("? "),
-  );
-  if (lastEnd >= max * 0.4) return text.slice(0, lastEnd + 1);
-  return truncateAtWord(text, max);
+  let t = text.trim();
+  // If text doesn't end at a sentence terminal, trim back to the last complete sentence.
+  if (t && !/[.!?]$/.test(t)) {
+    const lastEnd = Math.max(t.lastIndexOf(". "), t.lastIndexOf("! "), t.lastIndexOf("? "));
+    if (lastEnd > 0) t = t.slice(0, lastEnd + 1);
+  }
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const lastEnd = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+  if (lastEnd >= max * 0.4) return t.slice(0, lastEnd + 1);
+  return truncateAtWord(t, max);
 }
 
 function enforceHardLimits(data: CarouselDataShape): CarouselDataShape {
@@ -200,7 +203,7 @@ STEP 1 — Fetch every story URL using web_fetch before writing anything. You ne
 STEP 2 — After reading all 3 articles, call generate_carousel_data. Requirements:
 
 Body (the main readable text on each slide):
-- 2-3 sentences, MAX 240 characters total. Stay well under — do not pad to fill space.
+- 2-3 sentences, MAX 160 characters total. Every sentence must be complete — never stop mid-clause or mid-sentence. If you are near the limit, finish the current sentence and stop.
 - Pull actual specifics from the article: benchmark scores, model names, exact numbers, named features, timelines, pricing, company names.
 - Never write vague phrases like "pushes to new highs", "significant improvements", or "major update". Instead: "outperforms GPT-4o on MMLU by 12 points", "cuts inference cost by 40%", "ships in Q3 for $20/mo".
 - If the article has no numbers, use the most specific technical or product detail available.
