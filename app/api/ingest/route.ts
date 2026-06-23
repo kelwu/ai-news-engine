@@ -24,7 +24,7 @@ async function fetchNewsAPI(): Promise<Story[]> {
 
   return (data.articles ?? []).map((a: any) => ({
     title: a.title,
-    summary: a.description ?? "",
+    summary: (a.description ?? "").slice(0, 500),
     url: a.url,
     source: a.source?.name ?? "NewsAPI",
     published_at: a.publishedAt,
@@ -35,9 +35,9 @@ async function fetchTLDR(): Promise<Story[]> {
   const parser = new Parser();
   const feed = await parser.parseURL("https://tldr.tech/api/rss/ai");
 
-  return (feed.items ?? []).slice(0, 10).map((item) => ({
+  return (feed.items ?? []).slice(0, 3).map((item) => ({
     title: item.title ?? "",
-    summary: item.contentSnippet ?? "",
+    summary: (item.contentSnippet ?? "").slice(0, 500),
     url: item.link ?? "",
     source: "TLDR AI",
     published_at: item.pubDate ?? new Date().toISOString(),
