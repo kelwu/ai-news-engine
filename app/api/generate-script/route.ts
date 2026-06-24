@@ -113,10 +113,26 @@ export async function POST() {
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
   if (!episode) return NextResponse.json({ error: "No ingested episode found" }, { status: 404 });
 
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentPublished } = await supabase
+    .from("episodes")
+    .select("selected_story")
+    .eq("status", "published")
+    .gte("created_at", sevenDaysAgo)
+    .not("selected_story", "is", null);
+
+  const recentHeadlines = (recentPublished ?? [])
+    .map((e) => (e.selected_story as { headline?: string } | null)?.headline)
+    .filter(Boolean) as string[];
+
+  const recentBlock = recentHeadlines.length > 0
+    ? `\n\nTopics published in the last 7 days — avoid repeating these:\n${recentHeadlines.map((h) => `- ${h}`).join("\n")}`
+    : "";
+
   const messages: Anthropic.MessageParam[] = [
     {
       role: "user",
-      content: `Today is ${dateStr}. Here are today's AI news stories:\n\n${JSON.stringify(episode.raw_stories, null, 2)}\n\nResearch the top candidates then call finalize_output with your results.`,
+      content: `Today is ${dateStr}. Here are today's AI news stories:\n\n${JSON.stringify(episode.raw_stories, null, 2)}${recentBlock}\n\nResearch the top candidates then call finalize_output with your results.`,
     },
   ];
 
