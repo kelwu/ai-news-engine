@@ -15,6 +15,6 @@
     "app/api/voiceover/route.ts": { "maxDuration": 60 },
     "app/api/render/route.ts": { "maxDuration": 30 },
     "app/api/render-carousel/route.ts": { "maxDuration": 300 },
-    "app/api/confirm-stories/route.ts": { "maxDuration": 60 }
+    "app/api/confirm-stories/route.ts": { "maxDuration": 300 }
   }
 }
