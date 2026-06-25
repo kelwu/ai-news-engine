@@ -17,7 +17,7 @@ const LIMITS = {
   headlineHighlight: 20,// 1-3 words
   headlineSuffix: 50,   // rest of headline ending with period
   headlineCombined: 80, // 52px font, 752px wide (next to 180px thumb), 3 lines
-  body: 220,            // 32px font, 960px wide, ~4 lines of flex space
+  body: 300,            // 32px font, 960px wide, ~6 lines of flex space
   kelsTake: 120,        // 26px font, 912px inner width, 2 lines
   cardKey: 25,          // 22px font, ~273px inner card width
   cardValue: 15,        // 32px font, same card — numbers/stats only
@@ -203,7 +203,7 @@ STEP 1 — Fetch every story URL using web_fetch before writing anything. You ne
 STEP 2 — After reading all 3 articles, call generate_carousel_data. Requirements:
 
 Body (the main readable text on each slide):
-- 2-3 sentences, MAX 160 characters total. Every sentence must be complete — never stop mid-clause or mid-sentence. If you are near the limit, finish the current sentence and stop.
+- 3 sentences, target 220-260 characters. Every sentence must be complete — never stop mid-clause or mid-sentence. Fill the space with specific details; do not cut short.
 - Pull actual specifics from the article: benchmark scores, model names, exact numbers, named features, timelines, pricing, company names.
 - Never write vague phrases like "pushes to new highs", "significant improvements", or "major update". Instead: "outperforms GPT-4o on MMLU by 12 points", "cuts inference cost by 40%", "ships in Q3 for $20/mo".
 - If the article has no numbers, use the most specific technical or product detail available.
