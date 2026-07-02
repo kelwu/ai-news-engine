@@ -6,6 +6,7 @@ const navLinks = [
   { href: "/", label: "Today" },
   { href: "/episodes", label: "Episodes" },
   { href: "/review", label: "Review" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/settings", label: "Settings" },
 ];
 
