@@ -26,27 +26,24 @@ export default function StorySelector({
   recommendedFormat?: string;
 }) {
   const [format, setFormat] = useState<Format>((recommendedFormat as Format) ?? "carousel");
-  const [selected, setSelected] = useState<Set<number>>(new Set(defaultSelected.slice(0, 3)));
+  const [selected, setSelected] = useState<number[]>(defaultSelected.slice(0, 3));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
 
   const needsCarousel = format === "carousel" || format === "both";
-  const requiredCount = needsCarousel ? 3 : 0;
 
   const candidateMap = new Map(candidates.map((c) => [c.story_index, c.reason]));
 
   function toggle(index: number) {
     if (!needsCarousel) return;
     setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) {
-        next.delete(index);
-      } else {
-        if (next.size >= 3) return prev;
-        next.add(index);
+      const pos = prev.indexOf(index);
+      if (pos !== -1) {
+        return prev.filter((i) => i !== index);
       }
-      return next;
+      if (prev.length >= 3) return prev;
+      return [...prev, index];
     });
   }
 
@@ -54,29 +51,35 @@ export default function StorySelector({
     setFormat(f);
   }
 
-  const canConfirm = format === "reel" || selected.size === 3;
+  const canConfirm = format === "reel" || selected.length === 3;
 
   async function confirm() {
     if (!canConfirm) return;
     setLoading(true);
     setError("");
-    const res = await fetch("/api/confirm-stories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        episode_id: episodeId,
-        selected_indices: needsCarousel ? [...selected] : [],
-        format,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Failed to confirm");
+    try {
+      const res = await fetch("/api/confirm-stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          episode_id: episodeId,
+          selected_indices: needsCarousel ? selected : [],
+          format,
+        }),
+      });
+      let data: { error?: string } = {};
+      try { data = await res.json(); } catch { /* non-JSON response (e.g. 504) */ }
+      if (!res.ok) {
+        setError(data.error ?? `Request failed (${res.status})`);
+        setLoading(false);
+        return;
+      }
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error — please try again");
       setLoading(false);
-      return;
     }
-    router.push("/");
-    router.refresh();
   }
 
   return (
@@ -111,22 +114,26 @@ export default function StorySelector({
         <>
           <div className="flex items-center justify-between">
             <p className="text-base text-zinc-300">
-              <span className={selected.size === 3 ? "text-emerald-400 font-bold" : "text-white font-bold"}>
-                {selected.size}/3
+              <span className={selected.length === 3 ? "text-emerald-400 font-bold" : "text-white font-bold"}>
+                {selected.length}/3
               </span>{" "}
               stories selected
-              {selected.size < 3 && (
-                <span className="text-zinc-500"> — pick {3 - selected.size} more</span>
+              {selected.length < 3 && (
+                <span className="text-zinc-500"> — pick {3 - selected.length} more</span>
               )}
             </p>
+            {selected.length === 3 && (
+              <p className="text-xs text-zinc-500">Numbers = slide order — click to deselect</p>
+            )}
           </div>
 
           <div className="space-y-2">
             {stories.map((story, i) => {
-              const isSelected = selected.has(i);
+              const pos = selected.indexOf(i);
+              const isSelected = pos !== -1;
               const isClaude = candidateMap.has(i);
               const reason = candidateMap.get(i);
-              const isDisabled = !isSelected && selected.size >= 3;
+              const isDisabled = !isSelected && selected.length >= 3;
 
               return (
                 <div
@@ -142,21 +149,11 @@ export default function StorySelector({
                 >
                   <div className="flex items-start gap-4">
                     <div
-                      className={`mt-1 w-6 h-6 rounded-md flex items-center justify-center shrink-0 border-2 transition-colors ${
-                        isSelected ? "bg-blue-500 border-blue-500" : "border-zinc-500 bg-zinc-800"
+                      className={`mt-1 w-6 h-6 rounded-md flex items-center justify-center shrink-0 border-2 transition-colors text-sm font-bold ${
+                        isSelected ? "bg-blue-500 border-blue-500 text-white" : "border-zinc-500 bg-zinc-800 text-transparent"
                       }`}
                     >
-                      {isSelected && (
-                        <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
-                          <path
-                            d="M1 4.5l3.5 3.5 6.5-7"
-                            stroke="white"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
+                      {isSelected ? pos + 1 : ""}
                     </div>
 
                     <div className="flex-1 min-w-0">
