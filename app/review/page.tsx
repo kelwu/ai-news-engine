@@ -1,5 +1,6 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
 import ApproveButton from "../components/ApproveButton";
+import DistributeButtons from "../components/DistributeButtons";
 
 export const dynamic = "force-dynamic";
 
@@ -194,6 +195,17 @@ export default async function ReviewPage() {
           savedClosingCaption={savedClosingCaption}
           pendingRenderId={(episode as { render_id?: string }).render_id ?? null}
           pendingRenderBucket={(episode as { render_bucket?: string }).render_bucket ?? null}
+        />
+      </div>
+
+      {/* Distribute — fan the rendered reel out to other channels */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <p className="text-xs text-zinc-500 uppercase tracking-wider mb-4">Distribute</p>
+        <DistributeButtons
+          episodeId={episode.id}
+          hasVideo={hasVideo}
+          youtubeUrl={(episode as { youtube_url?: string }).youtube_url ?? null}
+          linkedinUrl={(episode as { linkedin_url?: string }).linkedin_url ?? null}
         />
       </div>
     </div>

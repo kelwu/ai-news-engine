@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
+import { HUMANIZER_RULES } from "@/lib/voice";
 
 export const maxDuration = 300;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `You are a research agent and AI news editor for @productbykel — a channel for PMs and AI builders on Instagram.
+const SYSTEM_PROMPT = `You are an AI news editor for @productbykel, a channel for PMs and AI builders on Instagram.
+
+${HUMANIZER_RULES}
+
 
 Your job each day:
-1. Review today's AI news stories (headlines + summaries provided)
-2. Identify the 2-3 most promising stories for a PM/builder audience
-3. Use web_fetch to read the full content of each candidate — always fetch at least 2 stories before deciding
-4. Select the single best story for the reel based on: depth of content, relevance to PMs/builders, recency
-5. Call finalize_output with all your results
+1. Review today's AI news stories — full article content is provided for each
+2. Select the single best story for the reel based on: depth of content, relevance to PMs/builders, recency
+3. Call finalize_output with all your results
 
 Reel script guidance (110-130 words, ~45 seconds):
 - Hook: one punchy sentence that creates urgency or curiosity
@@ -44,7 +46,25 @@ caption_reel (the "caption" field): Written for a video post. Hook teases what t
 
 caption_carousel (the "caption_carousel" field): Written for a swipeable carousel. Hook teases the stories inside. Include "Swipe → for the full breakdown" after the hook. After that, describe what's inside — 2-3 sentences on the themes covered. Add "Save this for later 🔖" as a second CTA. Tone is more editorial and educational — you're curating a briefing, not narrating a video.`;
 
-const WEB_FETCH_TOOL = { type: "web_fetch_20260209" as const, name: "web_fetch" as const };
+async function fetchArticleText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 4000);
+  } catch {
+    return "";
+  }
+}
 
 const FINALIZE_OUTPUT_TOOL: Anthropic.Tool = {
   name: "finalize_output",
@@ -129,40 +149,42 @@ export async function POST() {
     ? `\n\nTopics published in the last 7 days — avoid repeating these:\n${recentHeadlines.map((h) => `- ${h}`).join("\n")}`
     : "";
 
-  const messages: Anthropic.MessageParam[] = [
-    {
-      role: "user",
-      content: `Today is ${dateStr}. Here are today's AI news stories:\n\n${JSON.stringify(episode.raw_stories, null, 2)}${recentBlock}\n\nResearch the top candidates then call finalize_output with your results.`,
-    },
-  ];
+  type RawStory = { title: string; summary: string; url: string; source: string; published_at: string };
+  const rawStories = episode.raw_stories as RawStory[];
+
+  const articleTexts = await Promise.allSettled(rawStories.map((s) => fetchArticleText(s.url)));
+
+  const storiesWithContent = rawStories.map((s, i) => ({
+    ...s,
+    articleText: articleTexts[i].status === "fulfilled" ? articleTexts[i].value : "",
+  }));
+
+  const storiesBlock = storiesWithContent.map((s, i) =>
+    `Story ${i}:\nTitle: ${s.title}\nSource: ${s.source}\nURL: ${s.url}\nSummary: ${s.summary}${s.articleText ? `\n\nArticle content:\n${s.articleText}` : ""}`
+  ).join("\n\n---\n\n");
 
   let result: FinalOutput | null = null;
-  const MAX_ITERATIONS = 10;
 
   try {
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (anthropic.messages.create as any)({
-        model: "claude-sonnet-4-6",
-        max_tokens: 8192,
-        system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-        tools: [WEB_FETCH_TOOL, FINALIZE_OUTPUT_TOOL],
-        messages,
-      });
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8192,
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      tools: [FINALIZE_OUTPUT_TOOL],
+      tool_choice: { type: "any" },
+      messages: [
+        {
+          role: "user",
+          content: `Today is ${dateStr}. Here are today's AI news stories with full article content:\n\n${storiesBlock}${recentBlock}\n\nReview all stories, select the best one for the reel, and call finalize_output with your results.`,
+        },
+      ],
+    });
 
-      messages.push({ role: "assistant", content: response.content });
-
-      if (response.stop_reason === "end_turn") break;
-      if (response.stop_reason === "pause_turn") continue;
-
-      for (const block of response.content) {
-        if (block.type === "tool_use" && block.name === "finalize_output") {
-          result = block.input as FinalOutput;
-          break;
-        }
+    for (const block of response.content) {
+      if (block.type === "tool_use" && block.name === "finalize_output") {
+        result = block.input as FinalOutput;
+        break;
       }
-
-      if (result) break;
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

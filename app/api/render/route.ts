@@ -37,12 +37,12 @@ export async function POST() {
       voiceover_url: episode.voiceover_url,
       image_url: episode.image_url,
       image_urls: episode.image_urls ?? [episode.image_url],
-      duration: 50,
+      duration: 40,
     },
     codec: "h264",
     outName: `${episode.id}.mp4`,
     concurrencyPerLambda: 1,
-    framesPerLambda: 750,
+    framesPerLambda: 250,
     maxRetries: 2,
   });
 

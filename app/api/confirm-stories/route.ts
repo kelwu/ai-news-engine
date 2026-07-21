@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
+import { HUMANIZER_RULES } from "@/lib/voice";
 
 export const maxDuration = 300;
 
@@ -17,8 +18,8 @@ const LIMITS = {
   headlineHighlight: 20,// 1-3 words
   headlineSuffix: 50,   // rest of headline ending with period
   headlineCombined: 80, // 52px font, 752px wide (next to 180px thumb), 3 lines
-  body: 300,            // 32px font, 960px wide, ~6 lines of flex space
-  kelsTake: 120,        // 26px font, 912px inner width, 2 lines
+  body: 380,            // 32px font, 960px wide, ~8 lines of flex space — target 3-4 sentences
+  kelsTake: 95,         // 30px font, 912px inner width, max 1.5 lines — keeps it punchy and avoids overflow
   cardKey: 25,          // 22px font, ~273px inner card width
   cardValue: 15,        // 32px font, same card — numbers/stats only
   coverStatNumber: 12,  // 48px font, ~272px inner card width
@@ -46,7 +47,25 @@ type CarouselDataShape = {
 };
 
 
-const WEB_FETCH_TOOL = { type: "web_fetch_20260209" as const, name: "web_fetch" as const };
+async function fetchArticleText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 4000);
+  } catch {
+    return "";
+  }
+}
 
 const GENERATE_CAROUSEL_TOOL: Anthropic.Tool = {
   name: "generate_carousel_data",
@@ -135,7 +154,7 @@ function enforceHardLimits(data: CarouselDataShape): CarouselDataShape {
       headlineHighlight: s.headlineHighlight ? truncateAtWord(s.headlineHighlight, LIMITS.headlineHighlight) : s.headlineHighlight,
       headlineSuffix: s.headlineSuffix ? truncateAtWord(s.headlineSuffix, LIMITS.headlineSuffix) : s.headlineSuffix,
       body: s.body ? truncateAtSentence(s.body, LIMITS.body) : s.body,
-      kelsTake: truncateAtWord(s.kelsTake ?? "", LIMITS.kelsTake),
+      kelsTake: (() => { const k = truncateAtSentence((s.kelsTake ?? "").replace(/\s*[—–]\s*/g, ", "), LIMITS.kelsTake); return /[.!?]$/.test(k) ? k : k + "."; })(),
       cards: (s.cards ?? []).map((c) => ({
         key: truncateAtWord(c.key ?? "", LIMITS.cardKey),
         value: truncateAtWord(c.value ?? "", LIMITS.cardValue),
@@ -192,21 +211,32 @@ export async function POST(req: NextRequest) {
 
   const dateStr = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-  const userMessage = `You are a research agent generating carousel slide content for @productbykel (Instagram channel for PMs and AI builders).
+  const articleTexts = await Promise.allSettled(selectedStories.map((s) => fetchArticleText(s.url)));
+
+  const storiesWithContent = selectedStories.map((s, i) => {
+    const text = articleTexts[i].status === "fulfilled" ? articleTexts[i].value : "";
+    return { ...s, articleText: text || s.summary };
+  });
+
+  const userMessage = `You are generating carousel slide content for @productbykel (Instagram channel for PMs and AI builders).
+
+${HUMANIZER_RULES}
 
 Today is ${dateStr}. The user has selected these 3 stories for today's Tech Brief carousel:
 
-${selectedStories.map((s, i) => `Story ${i + 1}: ${s.title}\nSource: ${s.source}\nURL: ${s.url}\nSummary: ${s.summary}`).join("\n\n")}
+${storiesWithContent.map((s, i) => `Story ${i + 1}: ${s.title}\nSource: ${s.source}\nURL: ${s.url}\n\nArticle content:\n${s.articleText}`).join("\n\n---\n\n")}
 
-STEP 1 — Fetch every story URL using web_fetch before writing anything. You need the full article to find concrete details.
-
-STEP 2 — After reading all 3 articles, call generate_carousel_data. Requirements:
+Call generate_carousel_data with the following requirements:
 
 Body (the main readable text on each slide):
-- 3 sentences, target 220-260 characters. Every sentence must be complete — never stop mid-clause or mid-sentence. Fill the space with specific details; do not cut short.
-- Pull actual specifics from the article: benchmark scores, model names, exact numbers, named features, timelines, pricing, company names.
-- Never write vague phrases like "pushes to new highs", "significant improvements", or "major update". Instead: "outperforms GPT-4o on MMLU by 12 points", "cuts inference cost by 40%", "ships in Q3 for $20/mo".
-- If the article has no numbers, use the most specific technical or product detail available.
+- EXACTLY 3 sentences — no more, no fewer. Count them: 1. 2. 3. Never submit fewer than 3.
+- Sentence 1: the lead fact with the most important number or named detail.
+- Sentence 2: a second specific stat, comparison, or named feature — different from sentence 1.
+- Sentence 3: context, timeline, pricing, or PM-relevant implication.
+- Total target: 280–360 characters across all 3 sentences. Never stop after 1 or 2 sentences even if the character count looks high.
+- Do NOT merge all facts into one long sentence. Three separate sentences, each ending with a period.
+- Pull specifics from the article: benchmark scores, model names, exact numbers, named features, timelines, pricing, company names.
+- Never write vague phrases like "pushes to new highs" or "significant improvements". Use concrete details: "outperforms GPT-4o by 12 points", "cuts cost by 40%", "ships Q3 at $20/mo".
 
 Cards (3 key facts per slide):
 - Values MUST be numbers, percentages, or currency (e.g. "$33B", "−40%", "10 yrs", "50+", "3x"). Never abstract words like "Inference", "Performance", or a model name alone.
@@ -215,7 +245,7 @@ Cards (3 key facts per slide):
 
 Other fields:
 - headlineHighlight: a key number, named model, or 1-3-word term — the most concrete hook in the headline.
-- kelsTake: one punchy PM-specific insight, 15-20 words. Opinionated, not generic.
+- kelsTake: one punchy PM-specific insight, 12-15 words max. Must be a complete sentence under 95 characters. Follow the writing voice rules above — a direct opinion with a concrete consequence, not a newsletter closer.
 - coverStat: the single most impressive number from the article.
 
 Schema example:
@@ -244,33 +274,47 @@ Schema example:
 
 Category examples: "AI · FUNDING", "PRODUCT · STRATEGY", "BIG TECH · AI", "OPEN SOURCE · AI", "POLICY · AI", "AI · RESEARCH"`;
 
-  const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
+  // Character length is more reliable than sentence counting (avoids abbreviation false-splits like "U.S.", "Dr.", "5.6")
+  function bodiesNeedRetry(data: CarouselDataShape): boolean {
+    return data.stories.some(s => !s.body || s.body.length < 260);
+  }
+
+  async function callClaude(messages: Anthropic.MessageParam[]): Promise<CarouselDataShape | null> {
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      tools: [GENERATE_CAROUSEL_TOOL],
+      tool_choice: { type: "any" },
+      messages,
+    });
+    for (const block of response.content) {
+      if (block.type === "tool_use" && block.name === "generate_carousel_data") {
+        return block.input as CarouselDataShape;
+      }
+    }
+    return null;
+  }
+
   let carouselData: CarouselDataShape | null = null;
-  const MAX_ITERATIONS = 10;
 
   try {
-    for (let i = 0; i < MAX_ITERATIONS; i++) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (anthropic.messages.create as any)({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4096,
-        tools: [WEB_FETCH_TOOL, GENERATE_CAROUSEL_TOOL],
-        messages,
-      });
+    carouselData = await callClaude([{ role: "user", content: userMessage }]);
 
-      messages.push({ role: "assistant", content: response.content });
+    if (carouselData && bodiesNeedRetry(carouselData)) {
+      const badStories = carouselData.stories
+        .map((s, i) => ({ i: i + 1, body: s.body ?? "", len: (s.body ?? "").length }))
+        .filter(s => s.len < 260)
+        .map(s => `Story ${s.i} body is only ${s.len} characters (need 280–360): "${s.body}" — add another sentence with a specific detail.`)
+        .join("\n");
 
-      if (response.stop_reason === "end_turn") break;
-      if (response.stop_reason === "pause_turn") continue;
+      const retryMessage = `${userMessage}
 
-      for (const block of response.content) {
-        if (block.type === "tool_use" && block.name === "generate_carousel_data") {
-          carouselData = block.input as CarouselDataShape;
-          break;
-        }
-      }
+CORRECTION REQUIRED: The following bodies are too short. Target is 280–360 characters (3 full sentences). Resubmit all stories with fixed body text:
+${badStories}
 
-      if (carouselData) break;
+Keep the existing sentences and append one more complete sentence with a concrete detail from the article.`;
+
+      carouselData = await callClaude([{ role: "user", content: retryMessage }]) ?? carouselData;
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -278,7 +322,7 @@ Category examples: "AI · FUNDING", "PRODUCT · STRATEGY", "BIG TECH · AI", "OP
   }
 
   if (!carouselData) {
-    return NextResponse.json({ error: "Agent did not produce carousel data after max iterations" }, { status: 500 });
+    return NextResponse.json({ error: "Model did not produce carousel data" }, { status: 500 });
   }
 
   // Enforce hard character limits — word-boundary truncation, no-op when within budget

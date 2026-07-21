@@ -62,7 +62,8 @@ function KelsTakeLight({ text }: { text: string }) {
   return (
     <div style={{ background: S_TEXT, borderRadius: 14, padding: "20px 24px" }}>
       <div style={{ color: S_BLUE, fontSize: 20, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10, fontFamily }}>Signal</div>
-      <p style={{ color: "#fff", fontSize: 30, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily }}>{text}</p>
+      <p style={{ color: "#fff", fontSize: 30, fontWeight: 400, lineHeight: 1.5, margin: 0, fontFamily,
+        display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, overflow: "hidden" }}>{text}</p>
     </div>
   );
 }
