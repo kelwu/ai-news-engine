@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
 import { HUMANIZER_RULES } from "@/lib/voice";
+import { getPerformanceInsights } from "@/lib/insights";
 
 export const maxDuration = 300;
 
@@ -124,7 +125,7 @@ export async function POST() {
 
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
-    .select("id, raw_stories")
+    .select("id, raw_stories, seed_story")
     .eq("status", "ingested")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -147,6 +148,19 @@ export async function POST() {
 
   const recentBlock = recentHeadlines.length > 0
     ? `\n\nTopics published in the last 7 days — avoid repeating these:\n${recentHeadlines.map((h) => `- ${h}`).join("\n")}`
+    : "";
+
+  // Feedback loop: nudge Claude toward the formats/topics that actually performed.
+  const insights = await getPerformanceInsights(supabase);
+  const performanceBlock = insights.summary
+    ? `\n\nPerformance signals from published posts (use these to guide your reel pick and format recommendation):\n${insights.summary}`
+    : "";
+
+  // Honor an idea the user explicitly chose from the trending cards.
+  const seed = episode.seed_story as { headline?: string; title?: string } | null;
+  const seedHeadline = seed?.headline ?? seed?.title ?? null;
+  const seedBlock = seedHeadline
+    ? `\n\nThe user specifically chose this story for the reel: "${seedHeadline}". Use it as your selected_story unless it is clearly unusable, in which case pick the closest strong alternative.`
     : "";
 
   type RawStory = { title: string; summary: string; url: string; source: string; published_at: string };
@@ -175,7 +189,7 @@ export async function POST() {
       messages: [
         {
           role: "user",
-          content: `Today is ${dateStr}. Here are today's AI news stories with full article content:\n\n${storiesBlock}${recentBlock}\n\nReview all stories, select the best one for the reel, and call finalize_output with your results.`,
+          content: `Today is ${dateStr}. Here are today's AI news stories with full article content:\n\n${storiesBlock}${recentBlock}${performanceBlock}${seedBlock}\n\nReview all stories, select the best one for the reel, and call finalize_output with your results.`,
         },
       ],
     });
