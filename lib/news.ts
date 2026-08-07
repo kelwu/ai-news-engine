@@ -52,6 +52,29 @@ export async function fetchTLDR(): Promise<Story[]> {
   }));
 }
 
+// Fetch an article URL and return stripped plain text (first 4k chars). Used to
+// give Claude the full story when scripting an episode or writing a shoot brief.
+// Returns "" on any failure so callers can degrade gracefully.
+export async function fetchArticleText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 4000);
+  } catch {
+    return "";
+  }
+}
+
 // Topics that matter to PMs and AI builders — the @productbykel audience.
 // A story mentioning several of these is more on-brand than generic AI news.
 const PM_KEYWORDS = [

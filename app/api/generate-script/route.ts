@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
 import { HUMANIZER_RULES } from "@/lib/voice";
 import { getPerformanceInsights } from "@/lib/insights";
+import { fetchArticleText } from "@/lib/news";
 
 export const maxDuration = 300;
 
@@ -46,26 +47,6 @@ Caption writing rules (Instagram best practices — applies to both caption fiel
 caption_reel (the "caption" field): Written for a video post. Hook teases what the viewer is about to watch. After the hook, summarize what happened and why it matters. CTA is "Watch till the end 👇" or "Sound on 🔊". Assumes the viewer is watching a 45-second reel.
 
 caption_carousel (the "caption_carousel" field): Written for a swipeable carousel. Hook teases the stories inside. Include "Swipe → for the full breakdown" after the hook. After that, describe what's inside — 2-3 sentences on the themes covered. Add "Save this for later 🔖" as a second CTA. Tone is more editorial and educational — you're curating a briefing, not narrating a video.`;
-
-async function fetchArticleText(url: string): Promise<string> {
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)" },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return "";
-    const html = await res.text();
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 4000);
-  } catch {
-    return "";
-  }
-}
 
 const FINALIZE_OUTPUT_TOOL: Anthropic.Tool = {
   name: "finalize_output",
@@ -125,7 +106,7 @@ export async function POST() {
 
   const { data: episode, error: fetchError } = await supabase
     .from("episodes")
-    .select("id, raw_stories, seed_story")
+    .select("id, raw_stories, seed_story, seed_format")
     .eq("status", "ingested")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -163,6 +144,13 @@ export async function POST() {
     ? `\n\nThe user specifically chose this story for the reel: "${seedHeadline}". Use it as your selected_story unless it is clearly unusable, in which case pick the closest strong alternative.`
     : "";
 
+  // Honor a format the user pre-picked from a news card. Claude still writes the
+  // script and carousel candidates so the story_selection gate works either way.
+  const seedFormat = (episode.seed_format as string | null) ?? null;
+  const seedFormatBlock = seedFormat
+    ? `\n\nThe user already chose to make a ${seedFormat}. Recommend "${seedFormat}" as the format and still produce the script and carousel candidates so they can curate.`
+    : "";
+
   type RawStory = { title: string; summary: string; url: string; source: string; published_at: string };
   const rawStories = episode.raw_stories as RawStory[];
 
@@ -189,7 +177,7 @@ export async function POST() {
       messages: [
         {
           role: "user",
-          content: `Today is ${dateStr}. Here are today's AI news stories with full article content:\n\n${storiesBlock}${recentBlock}${performanceBlock}${seedBlock}\n\nReview all stories, select the best one for the reel, and call finalize_output with your results.`,
+          content: `Today is ${dateStr}. Here are today's AI news stories with full article content:\n\n${storiesBlock}${recentBlock}${performanceBlock}${seedBlock}${seedFormatBlock}\n\nReview all stories, select the best one for the reel, and call finalize_output with your results.`,
         },
       ],
     });
@@ -219,7 +207,7 @@ export async function POST() {
       caption: result.caption,
       caption_carousel: result.caption_carousel,
       hashtags: result.hashtags,
-      recommended_format: result.recommended_format ?? "reel",
+      recommended_format: seedFormat ?? result.recommended_format ?? "reel",
       format_reason: result.format_reason ?? null,
       carousel_candidates: result.carousel_candidates ?? [],
       status: "story_selection",

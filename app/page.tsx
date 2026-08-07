@@ -1,7 +1,7 @@
 import { getSupabaseServer } from "@/lib/supabase-server";
 import RunPipeline from "./components/RunPipeline";
 import StorySelector from "./components/StorySelector";
-import IdeaStarters from "./components/IdeaStarters";
+import NewsFeed from "./components/NewsFeed";
 import { getPerformanceInsights } from "@/lib/insights";
 
 export const dynamic = 'force-dynamic';
@@ -141,13 +141,16 @@ export default async function Home() {
           </div>
         ) : isIdle ? (
           <div className="rounded-xl border border-amber-800/40 bg-amber-950/20 p-5 space-y-4">
-            <div>
-              <p className="text-white font-medium">
-                {lastActivity ? `It's been ${Math.floor(daysSince)} days since your last post.` : "Let's get your first post out."}
-              </p>
-              <p className="text-zinc-400 text-sm mt-0.5">Here&apos;s what&apos;s trending in AI right now — pick one to kick-start an episode.</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-white font-medium">
+                  {lastActivity ? `It's been ${Math.floor(daysSince)} days since your last post.` : "Let's get your first post out."}
+                </p>
+                <p className="text-zinc-400 text-sm mt-0.5">Here&apos;s what&apos;s trending in AI right now — make it, or film your own.</p>
+              </div>
+              <a href="/news" className="text-xs text-zinc-400 hover:text-white transition-colors whitespace-nowrap shrink-0">Browse all news →</a>
             </div>
-            <IdeaStarters autoLoad />
+            <NewsFeed autoLoad />
           </div>
         ) : (
           <div className="rounded-xl border border-emerald-800/30 bg-emerald-950/15 p-5 space-y-4">
@@ -156,8 +159,9 @@ export default async function Home() {
                 <p className="text-white font-medium">You&apos;re up to date ✓</p>
                 <p className="text-zinc-400 text-sm mt-0.5">Nothing pending. Want to get ahead? See what&apos;s trending.</p>
               </div>
+              <a href="/news" className="text-xs text-zinc-400 hover:text-white transition-colors whitespace-nowrap shrink-0">Browse all news →</a>
             </div>
-            <IdeaStarters />
+            <NewsFeed />
           </div>
         )}
       </section>
