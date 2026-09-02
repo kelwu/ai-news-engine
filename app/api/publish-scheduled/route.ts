@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+export const maxDuration = 300;
+
 const IG_API = "https://graph.instagram.com/v25.0";
 const ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID!;
 const ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN!;
@@ -52,6 +54,10 @@ export async function GET() {
         ? `${episode.caption_carousel ?? episode.caption}\n\n${closing}`
         : (episode.caption_carousel ?? episode.caption);
 
+      // Capture the published media IDs so the performance feedback loop
+      // (lib/insights.ts) can later match these assets to content_posts.
+      const update: Record<string, string | null> = {};
+
       if (format === "reel" || format === "both") {
         if (!episode.video_url) throw new Error("No video URL");
         const caption = `${reelCaption}\n\n${episode.hashtags}`;
@@ -61,7 +67,8 @@ export async function GET() {
           caption,
         });
         await pollUntilReady(creationId);
-        await igPost(`${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
+        const { id } = await igPost(`${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
+        update.instagram_reel_id = id;
       }
 
       if (format === "carousel" || format === "both") {
@@ -78,12 +85,13 @@ export async function GET() {
           children: itemIds.join(","),
           caption,
         });
-        await igPost(`${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
+        const { id } = await igPost(`${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
+        update.instagram_carousel_id = id;
       }
 
       await supabase
         .from("episodes")
-        .update({ status: "published", scheduled_publish_at: null, error: null })
+        .update({ status: "published", scheduled_publish_at: null, posted_at: new Date().toISOString(), error: null, ...update })
         .eq("id", episode.id);
 
       results.push({ id: episode.id, status: "published" });

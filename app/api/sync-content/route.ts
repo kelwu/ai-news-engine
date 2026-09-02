@@ -26,7 +26,7 @@ async function syncYouTube() {
   // Step 1: fetch playlist items
   const playlistUrl =
     `https://www.googleapis.com/youtube/v3/playlistItems` +
-    `?part=snippet&maxResults=10&playlistId=${playlistId}&key=${apiKey}`;
+    `?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}`;
 
   const playlistRes = await fetch(playlistUrl);
   if (!playlistRes.ok) throw new Error(`YouTube API error: ${playlistRes.status}`);
@@ -104,7 +104,7 @@ async function syncInstagram() {
   if (!token) throw new Error("Missing INSTAGRAM_ACCESS_TOKEN");
 
   const fields = "id,caption,media_type,thumbnail_url,media_url,permalink,timestamp,like_count,comments_count";
-  const url = `https://graph.instagram.com/v25.0/me/media?fields=${fields}&limit=10&access_token=${token}`;
+  const url = `https://graph.instagram.com/v25.0/me/media?fields=${fields}&limit=50&access_token=${token}`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Instagram API error: ${res.status}`);
