@@ -1,26 +1,25 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { IG_API, getInstagramToken } from "@/lib/instagram";
 
 export const maxDuration = 300;
 
-const IG_API = "https://graph.instagram.com/v25.0";
 const ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID!;
-const ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN!;
 
-async function igPost(path: string, body: Record<string, string>) {
+async function igPost(token: string, path: string, body: Record<string, string>) {
   const res = await fetch(`${IG_API}/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, access_token: ACCESS_TOKEN }),
+    body: JSON.stringify({ ...body, access_token: token }),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error?.message ?? `IG API error on ${path}`);
   return data as { id: string };
 }
 
-async function pollUntilReady(creationId: string, maxAttempts = 30): Promise<void> {
+async function pollUntilReady(token: string, creationId: string, maxAttempts = 30): Promise<void> {
   for (let i = 0; i < maxAttempts; i++) {
-    const res = await fetch(`${IG_API}/${creationId}?fields=status_code&access_token=${ACCESS_TOKEN}`);
+    const res = await fetch(`${IG_API}/${creationId}?fields=status_code&access_token=${token}`);
     const data = await res.json() as { status_code: string };
     if (data.status_code === "FINISHED") return;
     if (data.status_code === "ERROR") throw new Error("Instagram media processing failed");
@@ -42,6 +41,12 @@ export async function GET() {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!episodes?.length) return NextResponse.json({ published: 0 });
 
+  let token: string;
+  try {
+    token = await getInstagramToken();
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+  }
   const results = [];
 
   for (const episode of episodes) {
@@ -61,13 +66,13 @@ export async function GET() {
       if (format === "reel" || format === "both") {
         if (!episode.video_url) throw new Error("No video URL");
         const caption = `${reelCaption}\n\n${episode.hashtags}`;
-        const { id: creationId } = await igPost(`${ACCOUNT_ID}/media`, {
+        const { id: creationId } = await igPost(token, `${ACCOUNT_ID}/media`, {
           media_type: "REELS",
           video_url: episode.video_url,
           caption,
         });
-        await pollUntilReady(creationId);
-        const { id } = await igPost(`${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
+        await pollUntilReady(token, creationId);
+        const { id } = await igPost(token, `${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
         update.instagram_reel_id = id;
       }
 
@@ -76,16 +81,16 @@ export async function GET() {
         const caption = `${carouselCaption}\n\n${episode.hashtags}`;
         const itemIds = await Promise.all(
           episode.carousel_urls.map(async (url: string) => {
-            const { id } = await igPost(`${ACCOUNT_ID}/media`, { image_url: url, is_carousel_item: "true" });
+            const { id } = await igPost(token, `${ACCOUNT_ID}/media`, { image_url: url, is_carousel_item: "true" });
             return id;
           })
         );
-        const { id: creationId } = await igPost(`${ACCOUNT_ID}/media`, {
+        const { id: creationId } = await igPost(token, `${ACCOUNT_ID}/media`, {
           media_type: "CAROUSEL",
           children: itemIds.join(","),
           caption,
         });
-        const { id } = await igPost(`${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
+        const { id } = await igPost(token, `${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
         update.instagram_carousel_id = id;
       }
 

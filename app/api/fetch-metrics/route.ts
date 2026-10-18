@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { IG_API, getInstagramToken } from "@/lib/instagram";
 
-const IG_API = "https://graph.instagram.com/v25.0";
-const ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN!;
+export const maxDuration = 300;
 
 const REEL_METRICS = "impressions,reach,saved,likes,comments,shares,plays,total_interactions";
 const CAROUSEL_METRICS = "impressions,reach,saved,likes,comments,shares,total_interactions";
 
-async function fetchMediaMetrics(mediaId: string, metrics: string): Promise<Record<string, number>> {
+async function fetchMediaMetrics(token: string, mediaId: string, metrics: string): Promise<Record<string, number>> {
   const res = await fetch(
-    `${IG_API}/${mediaId}/insights?metric=${metrics}&access_token=${ACCESS_TOKEN}`
+    `${IG_API}/${mediaId}/insights?metric=${metrics}&access_token=${token}`
   );
   const data = await res.json() as { data?: Array<{ name: string; values: Array<{ value: number }> }>; error?: { message: string } };
   if (!res.ok || data.error) throw new Error(data.error?.message ?? "Failed to fetch metrics");
@@ -34,13 +34,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No Instagram post IDs found — publish the episode first" }, { status: 400 });
   }
 
+  const token = await getInstagramToken();
   const metrics: Record<string, Record<string, number>> = {};
 
   if (episode.instagram_reel_id) {
-    metrics.reel = await fetchMediaMetrics(episode.instagram_reel_id, REEL_METRICS);
+    metrics.reel = await fetchMediaMetrics(token, episode.instagram_reel_id, REEL_METRICS);
   }
   if (episode.instagram_carousel_id) {
-    metrics.carousel = await fetchMediaMetrics(episode.instagram_carousel_id, CAROUSEL_METRICS);
+    metrics.carousel = await fetchMediaMetrics(token, episode.instagram_carousel_id, CAROUSEL_METRICS);
   }
 
   await supabase

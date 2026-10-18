@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { IG_API, getInstagramToken, refreshInstagramToken, storeInstagramThumbnail } from "@/lib/instagram";
 
-export const maxDuration = 30;
+// First run copies up to 50 thumbnails into storage, so allow the full window.
+export const maxDuration = 300;
 
 export async function GET() {
   const [youtubeResult, instagramResult] = await Promise.allSettled([
@@ -100,28 +102,55 @@ async function syncYouTube() {
 }
 
 async function syncInstagram() {
-  const token = process.env.INSTAGRAM_ACCESS_TOKEN;
-  if (!token) throw new Error("Missing INSTAGRAM_ACCESS_TOKEN");
+  // Rotate the token before using it. A failed refresh isn't fatal — the current
+  // token is still valid for weeks — but surface it in the response.
+  let tokenRefresh: Awaited<ReturnType<typeof refreshInstagramToken>> | { error: string };
+  try {
+    tokenRefresh = await refreshInstagramToken();
+  } catch (err) {
+    tokenRefresh = { error: (err as Error).message };
+  }
+  const token = await getInstagramToken();
 
   const fields = "id,caption,media_type,thumbnail_url,media_url,permalink,timestamp,like_count,comments_count";
-  const url = `https://graph.instagram.com/v25.0/me/media?fields=${fields}&limit=50&access_token=${token}`;
+  const url = `${IG_API}/me/media?fields=${fields}&limit=50&access_token=${token}`;
 
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Instagram API error: ${res.status}`);
   const data = await res.json();
 
   const items: unknown[] = data.data ?? [];
+
+  // Posts whose thumbnail is already copied to storage keep it; only new ones are fetched.
+  const { data: existing } = await supabase
+    .from("content_posts")
+    .select("platform_id, thumbnail_url")
+    .eq("platform", "instagram");
+  const storedThumbs = new Map(
+    (existing ?? [])
+      .filter((p) => p.thumbnail_url?.includes("/storage/v1/object/public/thumbnails/"))
+      .map((p) => [p.platform_id as string, p.thumbnail_url as string])
+  );
+
   let upserted = 0;
+  let thumbnailsStored = 0;
 
   for (const item of items) {
     const i = item as Record<string, unknown>;
-    const thumbnail = (i.thumbnail_url ?? i.media_url ?? null) as string | null;
+    const mediaId = i.id as string;
+    const cdnThumbnail = (i.thumbnail_url ?? i.media_url ?? null) as string | null;
+    let thumbnail = storedThumbs.get(mediaId) ?? null;
+    if (!thumbnail && cdnThumbnail) {
+      thumbnail = await storeInstagramThumbnail(mediaId, cdnThumbnail);
+      if (thumbnail) thumbnailsStored++;
+      else thumbnail = cdnThumbnail;
+    }
     const caption = i.caption as string | undefined;
 
     const { error } = await supabase.from("content_posts").upsert(
       {
         platform: "instagram",
-        platform_id: i.id as string,
+        platform_id: mediaId,
         title: null,
         caption: caption?.slice(0, 500) ?? null,
         thumbnail_url: thumbnail,
@@ -137,5 +166,5 @@ async function syncInstagram() {
     if (!error) upserted++;
   }
 
-  return { fetched: items.length, upserted };
+  return { fetched: items.length, upserted, thumbnailsStored, tokenRefresh };
 }

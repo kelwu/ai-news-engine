@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { IG_API, getInstagramToken } from "@/lib/instagram";
 
-const IG_API = "https://graph.instagram.com/v25.0";
+export const maxDuration = 300;
+
 const ACCOUNT_ID = process.env.INSTAGRAM_ACCOUNT_ID!;
-const ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN!;
 
-async function igPost(path: string, body: Record<string, string>) {
+async function igPost(token: string, path: string, body: Record<string, string>) {
   const res = await fetch(`${IG_API}/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...body, access_token: ACCESS_TOKEN }),
+    body: JSON.stringify({ ...body, access_token: token }),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error?.message ?? `IG API error on ${path}`);
   return data as { id: string };
 }
 
-async function pollUntilReady(creationId: string, maxAttempts = 30): Promise<void> {
+async function pollUntilReady(token: string, creationId: string, maxAttempts = 30): Promise<void> {
   for (let i = 0; i < maxAttempts; i++) {
     const res = await fetch(
-      `${IG_API}/${creationId}?fields=status_code&access_token=${ACCESS_TOKEN}`
+      `${IG_API}/${creationId}?fields=status_code&access_token=${token}`
     );
     const data = await res.json() as { status_code: string };
     if (data.status_code === "FINISHED") return;
@@ -29,12 +30,12 @@ async function pollUntilReady(creationId: string, maxAttempts = 30): Promise<voi
   throw new Error("Instagram media processing timed out");
 }
 
-async function publishWithRetry(creationId: string, maxAttempts = 5): Promise<string> {
+async function publishWithRetry(token: string, creationId: string, maxAttempts = 5): Promise<string> {
   let lastError: Error | null = null;
   for (let i = 0; i < maxAttempts; i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, 3000 * i));
     try {
-      const { id } = await igPost(`${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
+      const { id } = await igPost(token, `${ACCOUNT_ID}/media_publish`, { creation_id: creationId });
       return id;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -45,9 +46,9 @@ async function publishWithRetry(creationId: string, maxAttempts = 5): Promise<st
   throw lastError!;
 }
 
-async function fetchPermalink(mediaId: string): Promise<string | null> {
+async function fetchPermalink(token: string, mediaId: string): Promise<string | null> {
   try {
-    const res = await fetch(`${IG_API}/${mediaId}?fields=permalink&access_token=${ACCESS_TOKEN}`);
+    const res = await fetch(`${IG_API}/${mediaId}?fields=permalink&access_token=${token}`);
     const data = await res.json() as { permalink?: string };
     return data.permalink ?? null;
   } catch {
@@ -55,26 +56,26 @@ async function fetchPermalink(mediaId: string): Promise<string | null> {
   }
 }
 
-async function publishReel(episode: {
+async function publishReel(token: string, episode: {
   video_url: string;
   caption: string;
   hashtags: string;
 }): Promise<{ id: string; permalink: string | null }> {
   const caption = `${episode.caption}\n\n${episode.hashtags}`;
 
-  const { id: creationId } = await igPost(`${ACCOUNT_ID}/media`, {
+  const { id: creationId } = await igPost(token, `${ACCOUNT_ID}/media`, {
     media_type: "REELS",
     video_url: episode.video_url,
     caption,
   });
 
-  await pollUntilReady(creationId);
-  const id = await publishWithRetry(creationId);
-  const permalink = await fetchPermalink(id);
+  await pollUntilReady(token, creationId);
+  const id = await publishWithRetry(token, creationId);
+  const permalink = await fetchPermalink(token, id);
   return { id, permalink };
 }
 
-async function publishCarousel(episode: {
+async function publishCarousel(token: string, episode: {
   carousel_urls: string[];
   caption: string;
   hashtags: string;
@@ -83,7 +84,7 @@ async function publishCarousel(episode: {
 
   const itemIds = await Promise.all(
     episode.carousel_urls.map(async (url) => {
-      const { id } = await igPost(`${ACCOUNT_ID}/media`, {
+      const { id } = await igPost(token, `${ACCOUNT_ID}/media`, {
         image_url: url,
         is_carousel_item: "true",
       });
@@ -91,14 +92,14 @@ async function publishCarousel(episode: {
     })
   );
 
-  const { id: creationId } = await igPost(`${ACCOUNT_ID}/media`, {
+  const { id: creationId } = await igPost(token, `${ACCOUNT_ID}/media`, {
     media_type: "CAROUSEL",
     children: itemIds.join(","),
     caption,
   });
 
-  const id = await publishWithRetry(creationId);
-  const permalink = await fetchPermalink(id);
+  const id = await publishWithRetry(token, creationId);
+  const permalink = await fetchPermalink(token, id);
   return { id, permalink };
 }
 
@@ -124,18 +125,19 @@ export async function POST(req: NextRequest) {
     : (episode.caption_carousel ?? episode.caption);
 
   try {
+    const token = await getInstagramToken();
     const update: Record<string, string | null> = {};
 
     if (format === "reel" || format === "both") {
       if (!episode.video_url) return NextResponse.json({ error: "No video URL — render the reel first" }, { status: 400 });
-      const { id, permalink } = await publishReel({ ...episode, caption: reelCaption });
+      const { id, permalink } = await publishReel(token, { ...episode, caption: reelCaption });
       update.instagram_reel_id = id;
       update.instagram_reel_url = permalink;
     }
 
     if (format === "carousel" || format === "both") {
       if (!episode.carousel_urls?.length) return NextResponse.json({ error: "No carousel URLs — render the carousel first" }, { status: 400 });
-      const { id, permalink } = await publishCarousel({ ...episode, caption: carouselCaption });
+      const { id, permalink } = await publishCarousel(token, { ...episode, caption: carouselCaption });
       update.instagram_carousel_id = id;
       update.instagram_carousel_url = permalink;
     }
